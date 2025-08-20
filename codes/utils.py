@@ -36,7 +36,7 @@ def parse_args(args=None):
     parser.add_argument('--uni_weight', action='store_true', 
                         help='Otherwise use subsampling weighting like in word2vec')
     
-    parser.add_argument('-lr', '--learning_rate', default=0.0001, type=float)
+    parser.add_argument('-lr', '--learning_rate', default=0.0005, type=float)
     parser.add_argument('-cpu', '--cpu_num', default=32, type=int)
     parser.add_argument('-init', '--init_checkpoint', default=None, type=str)
     parser.add_argument('-save', '--save_path', default=None, type=str)
@@ -44,7 +44,7 @@ def parse_args(args=None):
     parser.add_argument('--warm_up_steps', default=None, type=int)
     
     parser.add_argument('--save_checkpoint_steps', default=1000, type=int)
-    parser.add_argument('--valid_steps', default=5000, type=int)
+    parser.add_argument('--valid_steps', default=2500, type=int)
     parser.add_argument('--log_steps', default=100, type=int, help='train log every xx steps')
     parser.add_argument('--test_log_steps', default=1000, type=int, help='valid/test log every xx steps')
     
