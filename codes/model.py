@@ -170,8 +170,6 @@ class KGEModel(nn.Module):
         else:
             score = (head + relation) - tail
 
-        print(head.shape, relation.shape, tail.shape)
-
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
 
@@ -491,6 +489,7 @@ class KGEModel(nn.Module):
                             'HITS@1': 1.0 if ranking <= 1 else 0.0,
                             'HITS@3': 1.0 if ranking <= 3 else 0.0,
                             'HITS@10': 1.0 if ranking <= 10 else 0.0,
+                            'HITS@25': 1.0 if ranking <= 25 else 0.0,
                         })
 
                     if step % args.test_log_steps == 0:
@@ -504,3 +503,65 @@ class KGEModel(nn.Module):
                 metrics[metric] = sum([log[metric] for log in logs])/len(logs)
 
         return metrics
+    
+    @staticmethod
+    def single_test_step(model, test_triple, all_true_triples, args):
+        '''
+        Evaluate the model on test or valid datasets
+        '''
+        
+        model.eval()
+        triple_set = set(map(tuple, all_true_triples))
+
+        with torch.no_grad():
+            head, relation, tail = test_triple
+            # TODO: Precompute all the negative samples outside this function (using for example an adjacency list or a set)
+            if args.mode == 'head-batch':
+                tmp = [(0, rand_head) if (rand_head, relation, tail) not in triple_set
+                    else (-1, head) for rand_head in range(args.nentity)]
+                tmp[head] = (0, head)
+            elif args.mode == 'tail-batch':
+                tmp = [(0, rand_tail) if (head, relation, rand_tail) not in triple_set
+                    else (-1, tail) for rand_tail in range(args.nentity)]
+                tmp[tail] = (0, tail)
+            else:
+                raise ValueError('negative batch mode %s not supported' % args.mode)
+
+            tmp = torch.LongTensor(tmp)            
+            filter_bias = tmp[:, 0].float()
+            negative_sample = tmp[:, 1]
+
+            positive_sample = torch.LongTensor((head, relation, tail))
+                
+            #return positive_sample, negative_sample, filter_bias, self.mode
+            if args.cuda:
+                positive_sample = positive_sample.cuda()
+                negative_sample = negative_sample.cuda()
+                filter_bias = filter_bias.cuda()
+
+            score = model((positive_sample.unsqueeze(0), negative_sample.unsqueeze(0)), args.mode)
+            score += filter_bias
+
+            argsort = torch.argsort(score, dim = 1, descending=True)
+
+            if args.mode == 'head-batch':
+                positive_arg = positive_sample[0]
+            elif args.mode == 'tail-batch':
+                positive_arg = positive_sample[2]
+            else:
+                raise ValueError('mode %s not supported' % args.mode)
+
+            ranking = (argsort.squeeze(0) == positive_arg).nonzero()
+            assert ranking.size(0) == 1
+
+            #ranking + 1 is the true ranking used in evaluation metrics
+            ranking = 1 + ranking.item()
+
+        return {
+                'MRR': 1.0/ranking,
+                'MR': float(ranking),
+                'HITS@1': 1.0 if ranking <= 1 else 0.0,
+                'HITS@3': 1.0 if ranking <= 3 else 0.0,
+                'HITS@10': 1.0 if ranking <= 10 else 0.0,
+                'HITS@25': 1.0 if ranking <= 25 else 0.0,
+            }
