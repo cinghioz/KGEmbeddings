@@ -26,7 +26,7 @@ def parse_args(args=None):
     parser.add_argument('-dr', '--double_relation_embedding', action='store_true')
     
     parser.add_argument('-n', '--negative_sample_size', default=128, type=int)
-    parser.add_argument('-d', '--hidden_dim', default=500, type=int)
+    parser.add_argument('-d', '--hidden_dim', default=512, type=int)
     parser.add_argument('-g', '--gamma', default=12.0, type=float)
     parser.add_argument('-adv', '--negative_adversarial_sampling', action='store_true')
     parser.add_argument('-a', '--adversarial_temperature', default=1.0, type=float)
@@ -43,9 +43,9 @@ def parse_args(args=None):
     parser.add_argument('--max_steps', default=100000, type=int)
     parser.add_argument('--warm_up_steps', default=None, type=int)
     
-    parser.add_argument('--save_checkpoint_steps', default=1000, type=int)
-    parser.add_argument('--valid_steps', default=2500, type=int)
-    parser.add_argument('--log_steps', default=100, type=int, help='train log every xx steps')
+    parser.add_argument('--save_checkpoint_steps', default=2500, type=int)
+    parser.add_argument('--valid_steps', default=5000, type=int)
+    parser.add_argument('--log_steps', default=500, type=int, help='train log every xx steps')
     parser.add_argument('--test_log_steps', default=1000, type=int, help='valid/test log every xx steps')
     
     parser.add_argument('--nentity', type=int, default=0, help='DO NOT MANUALLY SET')
