@@ -2,3 +2,4 @@ checkpoint
 *.npy
 *.log
 codes/__pycache__/
+.venv/
