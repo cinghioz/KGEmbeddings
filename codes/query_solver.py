@@ -21,31 +21,57 @@ class GeometricSolver:
         self._load_embeddings()
         self._initialize_metrics()
 
-    def _load_embeddings(self) -> None:
-        self.entity_embeddings = torch.from_numpy(np.load(os.path.join(self.model_path, 'entity_embedding.npy'))).to(self.device)
-        self.relation_embeddings = torch.from_numpy(np.load(os.path.join(self.model_path, 'relation_embedding.npy'))).to(self.device)
-
-    def get_metrics(self) -> dict:
-        if not hasattr(self, 'metrics'):
-            raise ValueError("No metrics available. Execute at least one query with true answers to get metrics.")
-        
-        # summary = {}
-        # for step in self.metrics:
-        #     summary[step] = {}
-        #     for metric in self.metrics[step]:
-        #         if self.metrics[step][metric]:
-        #             summary[step][metric] = sum(self.metrics[step][metric]) / len(self.metrics[step][metric])
-        #         else:
-        #             summary[step][metric] = 0.0
-        # return summary
-
-        return self.metrics
-
     def set_k(self, k_neighbors: int = None, k_results: int = None) -> None:
         if k_neighbors is not None:
             self.k_n = k_neighbors
         if k_results is not None:
             self.k_r = k_results
+
+    def _load_embeddings(self) -> None:
+        self.entity_embeddings = torch.from_numpy(np.load(os.path.join(self.model_path, 'entity_embedding.npy'))).to(self.device)
+        self.relation_embeddings = torch.from_numpy(np.load(os.path.join(self.model_path, 'relation_embedding.npy'))).to(self.device)
+
+    def _initialize_metrics(self) -> None:
+        self.metrics = {
+            "mrr": [],
+            "hits1": [],
+            "hits3": [],
+            "hits5": [],
+            "hits10": [],
+            "hits25": [],
+        }
+
+    def _reset_metrics(self) -> None:
+        for metric in self.metrics:
+            self.metrics[metric] = []
+
+    def get_metrics(self) -> dict:
+        if not hasattr(self, 'metrics'):
+            raise ValueError("No metrics available. Execute at least one query with true answers to get metrics.")
+
+        return self.metrics
+    
+    # Evaluate only the final set. TODO: possibile update per valutare intermedi per query complesse composte
+    # TODO: capire cosa fare se il target non viene trovato nel ranking (adesso 0.0). Perchè il numero di risultati è limitato a k_results
+    # magari conviene pesare sul numero di target da trovare e il numero di risultati trovati k
+    def _evaluate_query(self, predicted: set, true: set) -> None:
+        for t in true:
+            ranking = (predicted == t)
+            if ranking.sum():
+                ranking = ranking.nonzero(as_tuple=True)[0]+1
+                self.metrics['mrr'].append(1.0 / ranking.item())
+                self.metrics['hits1'].append(1.0 if ranking <= 1 else 0.0)
+                self.metrics['hits3'].append(1.0 if ranking <= 3 else 0.0)
+                self.metrics['hits5'].append(1.0 if ranking <= 5 else 0.0)
+                self.metrics['hits10'].append(1.0 if ranking <= 10 else 0.0)
+                self.metrics['hits25'].append(1.0 if ranking <= 25 else 0.0)
+            else:
+                self.metrics['mrr'].append(0.0)
+                self.metrics['hits1'].append(0.0)
+                self.metrics['hits3'].append(0.0)
+                self.metrics['hits5'].append(0.0)
+                self.metrics['hits10'].append(0.0)
+                self.metrics['hits25'].append(0.0)
 
     def _transe(self, head: torch.Tensor, rel: torch.Tensor, tail: torch.Tensor, mode: str) -> torch.Tensor:
         if mode == "head-batch":
@@ -98,32 +124,15 @@ class GeometricSolver:
 
         return best_ids, distances[best_ids]
 
-    # Evaluate only the final set. TODO: possibile update per valutare intermedi per query complesse composte
-    # TODO: capire cosa fare se il target non viene trovato nel ranking (adesso 0.0). Perchè il numero di risultati è limitato a k_results
-    # magari conviene pesare sul numero di target da trovare e il numero di risultati trovati k
-    def _evaluate_query(self, predicted: set, true: set) -> None:
-        for t in true:
-            ranking = (predicted == t)
-            if ranking.sum():
-                ranking = ranking.nonzero(as_tuple=True)[0]+1
-                self.metrics['mrr'].append(1.0 / ranking.item())
-                self.metrics['hits3'].append(1.0 if ranking <= 3 else 0.0)
-                self.metrics['hits5'].append(1.0 if ranking <= 5 else 0.0)
-                self.metrics['hits10'].append(1.0 if ranking <= 10 else 0.0)
-            else:
-                self.metrics['mrr'].append(0.0)
-                self.metrics['hits3'].append(0.0)
-                self.metrics['hits5'].append(0.0)
-                self.metrics['hits10'].append(0.0)
-
     def _project(self, query: list, mode: str = "tail-batch", last: bool = False, trues: set = None) -> list[list]:
         acc = []
+        dists = []
 
         for q in query:
 
             h, r = q
 
-            ids, _ = self._predict(int(h), int(r), int(h), mode=mode, last=last)
+            ids, dist = self._predict(int(h), int(r), int(h), mode=mode, last=last)
 
             if trues and last:
                 # Potrei valutare direttamente alla fine, ma facendo così sono già ordinati per distanza
@@ -131,50 +140,60 @@ class GeometricSolver:
                 self._evaluate_query(ids.cpu(), targets)
 
             acc.append(ids.cpu().tolist())
+            dists.append(dist.cpu().tolist())
 
-        return acc
+        return acc, dists
 
     def _union(self, list_of_lists: list[list]) -> set:
         return set(np.array(list_of_lists).flatten())
+
+    def _union_with_order(self, ids_lists: list[list], dists_lists: list[list] | None) -> list:
+        if not dists_lists:
+            return list(self._union(ids_lists))
+
+        ids = np.array(ids_lists).flatten()
+        ds  = np.array(dists_lists).flatten()
+
+        # Get unique ids and their first indices
+        uniq_ids, inv = np.unique(ids, return_inverse=True)
+
+        # Initialize all distances to +inf, then take elementwise minimum
+        min_dists = np.full(len(uniq_ids), np.inf)
+        np.minimum.at(min_dists, inv, ds)
+
+        # Sort ids according to their min distance
+        order = np.argsort(min_dists)
+        return uniq_ids[order]
     
-    def _intersection(self, list_of_lists: list[list]) -> set:
+    def _intersection(self, list_of_lists: list[list]) -> list:
         if not list_of_lists:
             return set()
         
         result = set(list_of_lists[0])
         for lst in list_of_lists[1:]:
             result &= set(lst)
-        return result
-    
-    def _initialize_metrics(self) -> None:
-        self.metrics = {
-            "mrr": [],
-            "hits3": [],
-            "hits5": [],
-            "hits10": [],
-        }
-
-    def _reset_metrics(self) -> None:
-        for metric in self.metrics:
-            self.metrics[metric] = []
+        return list(result)
 
     def execute_query(self, query: list, proj_mode: str = "inter", agg_mode: str = "union", trues: list[set] = None):
         proj_agg = self._union if proj_mode == "union" else self._intersection
-        res_agg = self._union if agg_mode == "union" else self._intersection
+        res_agg = self._union_with_order if agg_mode == "union" else self._intersection
 
         final_ids = set()
         intermediate_ids = []
 
         if len(query) > 1 and isinstance(query[-1], np.int64):
             rel_target = query[-1]
+        else:
+            # print("Query broken")
+            return []
 
         if len(query) == 1:
-            projections = self._project(query, mode="tail-batch")
+            projections, _ = self._project(query, mode="tail-batch")
             final_ids = projections[0]
 
             return final_ids
 
-        projections = self._project(query[0], mode="tail-batch")
+        projections, _ = self._project(query[0], mode="tail-batch")
         intermediate_ids = proj_agg(projections)
 
         # Filter only nodes that can have an out edge with rel_target (da capire se ha senso)
@@ -182,10 +201,10 @@ class GeometricSolver:
 
         # print(f"Number of inter nodes ({len(final_queries)})")
 
-        projections = self._project(final_queries, mode="tail-batch", last=True, trues=trues[1] if trues else None)
-        final_ids = res_agg(projections)
+        projections, dists = self._project(final_queries, mode="tail-batch", last=True, trues=trues[1] if trues else None)
+        final_ids = res_agg(projections, dists)
         
         # TODO: Manca gestire per query più complesse (adesso solo  1p, np + inter/union, np + inter/union + 1p + inter/union)
-        # TODO: Implementare anche l'evaluation (optional) usando i trues ids. Fare gestione esterna richiamata in questa funzione
+        # TODO: Implementare anche l'evaluation (optional) usando i trues ids. Fare gestione esterna richiamata in questa funzione (done ma lascio commento)
 
         return final_ids

@@ -52,7 +52,7 @@ for triple in kg.triplets:
     indexing_dict[tail]['in']  = np.vstack([indexing_dict[tail]['in'], [head, relation]])
     indexing_dict[tail]['count'] += 1
 
-def find_queries(h2t, indexing_dict, n_queries=100):
+def find_queries(h2t, indexing_dict, n_pairs=5, n_queries=10000):
     queries = []
     results = []
 
@@ -76,7 +76,7 @@ def find_queries(h2t, indexing_dict, n_queries=100):
         pairs = pairs[pairs[:,0] != pairs[:,1]]
         np.random.shuffle(pairs)
 
-        for pair in pairs[:min(5, len(pairs))]:
+        for pair in pairs[:min(n_pairs, len(pairs))]:
             try:
                 # r1, r2 = relations[:2]
                 r1, r2 = pair
@@ -132,12 +132,12 @@ def find_queries(h2t, indexing_dict, n_queries=100):
 
     return queries, results
 
-queries, results = find_queries(h2t, indexing_dict, n_queries=100000)
+queries, results = find_queries(h2t, indexing_dict, n_pairs=15, n_queries=500000)
 
 save_dict = {
     'queries': queries,
     'results': results
 }
 
-with open('queries-medium.pkl', 'wb') as f:
+with open('queries-big.pkl', 'wb') as f:
     pickle.dump(save_dict, f)
