@@ -126,6 +126,7 @@ class GeometricSolver:
             ids, _ = self._predict(int(h), int(r), int(h), mode=mode, last=last)
 
             if trues and last:
+                # Potrei valutare direttamente alla fine, ma facendo così sono già ordinati per distanza
                 targets = self._intersection([self.h2t.get((h, r), set()), trues])
                 self._evaluate_query(ids.cpu(), targets)
 
