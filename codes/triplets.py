@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import torch
 import os
+from collections import defaultdict
 
 class TripletsEngine:
     def __init__(self, path, from_splits=False, feat_path=None):
@@ -31,6 +32,7 @@ class TripletsEngine:
                 self._load_triplets()
         if feat_path:
             self._load_features()
+        self._generate_mappings()
     
     def _load_triplets_proc(self):
         df = pd.read_csv(self.path+'/triplets.txt', sep='\t', header=None)
@@ -99,6 +101,35 @@ class TripletsEngine:
 
     def _load_features(self):
         self.node_features = torch.load(self.feat_path)
+
+    def _generate_mappings(self):
+        # (head, relation) -> list of tails
+        self.h2t = defaultdict(list)
+
+        # (relation, tail) -> list of heads
+        self.r2h = defaultdict(list)
+
+        self.indexing_dict = defaultdict(dict)
+
+        for triple in self.triplets:
+            head, relation, tail = tuple(triple)
+            self.h2t[(head, relation)].append(tail)
+            self.r2h[(tail, relation)].append(head)
+
+            if head not in self.indexing_dict:
+                self.indexing_dict[head] = {'in': np.empty((0, 2), dtype=np.int64),
+                                    'out': np.empty((0, 2), dtype=np.int64),
+                                    'count': 0}
+            if tail not in self.indexing_dict:
+                self.indexing_dict[tail] = {'in': np.empty((0, 2), dtype=np.int64),
+                                    'out': np.empty((0, 2), dtype=np.int64),
+                                    'count': 0}
+
+            self.indexing_dict[head]['out'] = np.vstack([self.indexing_dict[head]['out'], [tail, relation]])
+            self.indexing_dict[head]['count'] += 1
+
+            self.indexing_dict[tail]['in']  = np.vstack([self.indexing_dict[tail]['in'], [head, relation]])
+            self.indexing_dict[tail]['count'] += 1
 
     def split_triplets(self, train_ratio=0.7, valid_ratio=0.10, inductive=False, seed=42):
         np.random.seed(seed)

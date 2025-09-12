@@ -9,12 +9,14 @@ import os
 import numpy as np
 
 class GeometricSolver:
-    def __init__(self, model_path: str, emb_dim: int, k_neighbors: int = 50, k_results: int = 25, device: str = "cuda"):
+    def __init__(self, model_path: str, model_name: str, emb_dim: int, k_neighbors: int = 50, k_results: int = 25, device: str = "cuda"):
         self.model_path = model_path
+        self.model_name = model_name
         self.emb_dim = emb_dim
         self.device = device
         self.k_n = k_neighbors
         self.k_r = k_results
+        self.pi = 3.14159265358979323846
         self._load_embeddings()
 
     def _load_embeddings(self) -> None:
@@ -43,16 +45,48 @@ class GeometricSolver:
         if k_results is not None:
             self.k_r = k_results
 
-    #TODO: predict in futuro dovrà implementare anche RotatE ecc
-    def _predict(self, head_id: int, relation_id: int, tail_id: int, mode: str = "tail-batch", last: bool = False) -> tuple[torch.tensor, torch.tensor]:
+    def _transe(self, head: torch.Tensor, rel: torch.Tensor, tail: torch.Tensor, mode: str) -> torch.Tensor:
+        if mode == "head-batch":
+            return tail - rel
+        else:
+            return head + rel
+
+    def _rotate(self, head: torch.Tensor, rel: torch.Tensor, tail: torch.Tensor, mode: str) -> torch.Tensor:
+        # split entity embeddings into real/imag parts
+        re_head, im_head = torch.chunk(head, 2, dim=-1)
+        re_tail, im_tail = torch.chunk(tail, 2, dim=-1)
+
+        # map relation to phase in [-pi, pi]
+        phase_relation = rel / (self.embedding_range.item() / self.pi) # TODO: check embedding range
+        re_relation = torch.cos(phase_relation)
+        im_relation = torch.sin(phase_relation)
+
+        if mode == "head-batch":
+            # given tail & relation → recover head
+            re_target = re_relation * re_tail + im_relation * im_tail
+            im_target = re_relation * im_tail - im_relation * re_tail
+        else:
+            # given head & relation → predict tail
+            re_target = re_head * re_relation - im_head * im_relation
+            im_target = re_head * im_relation + im_head * re_relation
+
+        # recombine real & imag into a single vector
+        return torch.cat([re_target, im_target], dim=-1)
+
+    def _calculate(self, head: torch.Tensor, rel: torch.Tensor, tail: torch.Tensor, mode: str) -> torch.Tensor:
+        if self.model_name.lower() == "transe":
+            return self._transe(head, rel, tail, mode)
+        elif self.model_name.lower() == "rotate":
+            return self._rotate(head, rel, tail, mode)
+        else:
+            raise NotImplementedError(f"Model {self.model_name} not implemented in GeometricSolver.")
+
+    def _predict(self, head_id: int, relation_id: int, tail_id: int, mode: str = "tail-batch", last: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
         head = self.entity_embeddings[head_id]
         rel = self.relation_embeddings[relation_id]
         tail = self.entity_embeddings[tail_id]
 
-        if mode == "head-batch":
-            target = tail - rel
-        else:
-            target = head + rel
+        target = self._calculate(head, rel, tail, mode)
 
         # L1 distance to all entities
         distances = torch.norm(self.entity_embeddings - target, p=2, dim=1)
@@ -128,27 +162,18 @@ class GeometricSolver:
 
         if len(query) == 1:
             projections = self._project(query, mode="tail-batch")
-            final_ids = proj_agg(projections)
-            if trues:
-                self._evaluate_query(final_ids, trues, step="first")
+            final_ids = projections[0]
 
             return final_ids
 
         projections = self._project(query[0], mode="tail-batch")
         intermediate_ids = proj_agg(projections)
-        print(f"Intermediate ids ({len(intermediate_ids)})")
-        
-        if trues:
-            self._evaluate_query(intermediate_ids, trues[0], step="first")
+        # print(f"Intermediate ids ({len(intermediate_ids)})")
 
         final_queries = [ (node, rel_target) for node in intermediate_ids ]
 
         projections = self._project(final_queries, mode="tail-batch", last=True)
         final_ids = res_agg(projections)
-
-        if trues:
-            print(len(final_ids), len(trues[1]))
-            self._evaluate_query(final_ids, trues[1], step="second")
         
         # TODO: Manca gestire per query più complesse (adesso solo  1p, np + inter/union, np + inter/union + 1p + inter/union)
         # TODO: Implementare anche l'evaluation (optional) usando i trues ids. Fare gestione esterna richiamata in questa funzione
