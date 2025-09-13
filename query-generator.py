@@ -52,6 +52,7 @@ for triple in kg.triplets:
     indexing_dict[tail]['in']  = np.vstack([indexing_dict[tail]['in'], [head, relation]])
     indexing_dict[tail]['count'] += 1
 
+# TODO: Ci sono delle query che non hanno struttura corretta, non so perchè. Controlla la f
 def find_queries(h2t, indexing_dict, n_pairs=5, n_queries=10000):
     queries = []
     results = []
