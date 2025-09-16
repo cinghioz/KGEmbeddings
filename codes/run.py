@@ -221,7 +221,7 @@ def main(args):
             #     train_dataset_head.precompute_negatives()
             #     train_dataset_tail.precompute_negatives()
 
-            if args.do_valid and step % args.valid_steps == 0:
+            if args.do_valid and ((step+1) % args.valid_steps == 0):
                 logging.info('Evaluating on Valid Dataset...')
                 metrics = kge_model.test_step(kge_model, kg.triplets[kg.valid_set], kg.triplets, args)
                 log_metrics('Valid', step, metrics)
