@@ -4,13 +4,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import argparse
+
+import time
 import json
 import logging
 import os
 import random
 import numpy as np
 import torch
+from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 from model import KGEModel
@@ -109,9 +111,19 @@ def main(args):
         kge_model = kge_model.cuda()
     
     if args.do_train:
+        train_dataset_head = TrainDataset(kg.triplets[kg.train_set], kg.triplets, kg.number_of_entities, kg.number_of_relations, args.negative_sample_size, 'head-batch')
+        train_dataset_tail = TrainDataset(kg.triplets[kg.train_set], kg.triplets, kg.number_of_entities, kg.number_of_relations, args.negative_sample_size, 'tail-batch')
+
+        # start_time = time.time()
+        
+        # train_dataset_head.precompute_negatives()
+        # train_dataset_tail.precompute_negatives()
+
+        # print(f"--- precompute negatives: seconds {time.time() - start_time}---")
+        
         # Set training dataloader iterator
         train_dataloader_head = DataLoader(
-            TrainDataset(kg.triplets[kg.train_set], kg.triplets, kg.number_of_entities, kg.number_of_relations, args.negative_sample_size, 'head-batch'), 
+            train_dataset_head,
             batch_size=args.batch_size,
             shuffle=True, 
             num_workers=max(1, args.cpu_num//2),
@@ -119,7 +131,7 @@ def main(args):
         )
         
         train_dataloader_tail = DataLoader(
-            TrainDataset(kg.triplets[kg.train_set], kg.triplets, kg.number_of_entities, kg.number_of_relations, args.negative_sample_size, 'tail-batch'),  
+            train_dataset_tail,
             batch_size=args.batch_size,
             shuffle=True, 
             num_workers=max(1, args.cpu_num//2),
@@ -174,7 +186,7 @@ def main(args):
         training_logs = []
         
         #Training Loop
-        for step in range(init_step, args.max_steps):
+        for step in tqdm(range(init_step, args.max_steps)):
             
             log = kge_model.train_step(kge_model, optimizer, train_iterator, args)
 
@@ -204,7 +216,11 @@ def main(args):
                     metrics[metric] = sum([log[metric] for log in training_logs])/len(training_logs)
                 log_metrics('Training average', step, metrics)
                 training_logs = []
-                
+
+            # if (step % 100) + 1 == 0:
+            #     train_dataset_head.precompute_negatives()
+            #     train_dataset_tail.precompute_negatives()
+
             if args.do_valid and step % args.valid_steps == 0:
                 logging.info('Evaluating on Valid Dataset...')
                 metrics = kge_model.test_step(kge_model, kg.triplets[kg.valid_set], kg.triplets, args)

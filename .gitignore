@@ -5,3 +5,4 @@ codes/__pycache__/
 .venv/
 queries-medium.pkl
 queries-big.pkl
+data/primekg

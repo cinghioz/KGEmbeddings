@@ -18,6 +18,8 @@ class GeometricSolver:
         self.k_r = k_results
         self.pi = 3.14159265358979323846
         self.h2t = h2t
+        self.checkpoint = torch.load(os.path.join(model_path, 'checkpoint'))
+        self.L = 2
         self._load_embeddings()
         self._initialize_metrics()
 
@@ -54,7 +56,7 @@ class GeometricSolver:
     # Evaluate only the final set. TODO: possibile update per valutare intermedi per query complesse composte
     # TODO: capire cosa fare se il target non viene trovato nel ranking (adesso 0.0). Perchè il numero di risultati è limitato a k_results
     # magari conviene pesare sul numero di target da trovare e il numero di risultati trovati k
-    def _evaluate_query(self, predicted: set, true: set) -> None:
+    def _evaluate_query(self, predicted: torch.Tensor, true: list) -> None:
         for t in true:
             ranking = (predicted == t)
             if ranking.sum():
@@ -84,8 +86,10 @@ class GeometricSolver:
         re_head, im_head = torch.chunk(head, 2, dim=-1)
         re_tail, im_tail = torch.chunk(tail, 2, dim=-1)
 
+        embedding_range = torch.tensor([[0.1016]], device=self.device)
+
         # map relation to phase in [-pi, pi]
-        phase_relation = rel / (self.embedding_range.item() / self.pi) # TODO: check embedding range
+        phase_relation = rel / (embedding_range.item() / self.pi) # TODO: check embedding range. Per tutti i parametri legati al modello, caricare da ckpt
         re_relation = torch.cos(phase_relation)
         im_relation = torch.sin(phase_relation)
 
@@ -116,8 +120,8 @@ class GeometricSolver:
 
         target = self._calculate(head, rel, tail, mode)
 
-        # L1 distance to all entities
-        distances = torch.norm(self.entity_embeddings - target, p=2, dim=1)
+        # L distance to all entities
+        distances = torch.norm(self.entity_embeddings - target, p=self.L, dim=1)
 
         # - to get largest scores
         best_ids = torch.topk(-distances, self.k_r if last else self.k_n).indices
@@ -135,7 +139,7 @@ class GeometricSolver:
             ids, dist = self._predict(int(h), int(r), int(h), mode=mode, last=last)
 
             if trues and last:
-                # Potrei valutare direttamente alla fine, ma facendo così sono già ordinati per distanza
+                # Potrei valutare direttamente alla fine, ma facendo così ids sono già ordinati per distanza
                 targets = self._intersection([self.h2t.get((h, r), set()), trues])
                 self._evaluate_query(ids.cpu(), targets)
 
@@ -154,14 +158,12 @@ class GeometricSolver:
         ids = np.array(ids_lists).flatten()
         ds  = np.array(dists_lists).flatten()
 
-        # Get unique ids and their first indices
         uniq_ids, inv = np.unique(ids, return_inverse=True)
 
         # Initialize all distances to +inf, then take elementwise minimum
         min_dists = np.full(len(uniq_ids), np.inf)
         np.minimum.at(min_dists, inv, ds)
 
-        # Sort ids according to their min distance
         order = np.argsort(min_dists)
         return uniq_ids[order]
     
@@ -205,6 +207,5 @@ class GeometricSolver:
         final_ids = res_agg(projections, dists)
         
         # TODO: Manca gestire per query più complesse (adesso solo  1p, np + inter/union, np + inter/union + 1p + inter/union)
-        # TODO: Implementare anche l'evaluation (optional) usando i trues ids. Fare gestione esterna richiamata in questa funzione (done ma lascio commento)
 
         return final_ids

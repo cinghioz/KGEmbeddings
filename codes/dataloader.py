@@ -24,33 +24,92 @@ class TrainDataset(Dataset):
         
     def __len__(self):
         return self.len
-    
-    def __getitem__(self, idx):
-        positive_sample = self.triples[idx]
 
+    # def precompute_negatives(self, oversample_factor: int = 10):
+    #     """
+    #     Precompute negative samples for all triples.
+    #     Stores them in self.negative_samples as a LongTensor.
+    #     Shape: (len(triples), negative_sample_size, 2)
+    #     """
+    #     n_triples = len(self.triples)
+    #     negatives = np.zeros((n_triples, self.negative_sample_size), dtype=np.int32)
+
+    #     # Pre-generate large candidate pools
+    #     candidate_e = np.random.randint(
+    #         self.nentity,
+    #         size=(n_triples, oversample_factor * self.negative_sample_size)
+    #     )
+    #     # candidate_r = np.random.randint(
+    #     #     self.nrelation,
+    #     #     size=(n_triples, oversample_factor * self.negative_sample_size)
+    #     # )
+
+    #     for idx, (head, relation, tail) in enumerate(self.triples):
+    #         neg_pairs = []
+    #         check_neg_cands = 0
+    #         cand_e = candidate_e[idx]
+
+    #         while check_neg_cands < self.negative_sample_size:
+    #             if self.mode == 'head-batch':
+    #                 mask = ~np.isin(cand_e, self.true_head[(relation, tail)], assume_unique=True)
+    #             elif self.mode == 'tail-batch':
+    #                 mask = ~np.isin(cand_e, self.true_tail[(head, relation)], assume_unique=True)
+    #             else:
+    #                 raise ValueError(f'Training batch mode {self.mode} not supported')
+
+    #             if np.count_nonzero(mask) > 0:
+    #                 neg_pairs.extend(cand_e[mask][:self.negative_sample_size - check_neg_cands].tolist())
+    #                 check_neg_cands += np.count_nonzero(mask)
+
+    #             cand_e = np.random.randint(self.nentity, size=self.negative_sample_size)
+
+    #         # Trim to required size
+    #         negatives[idx] = neg_pairs[:self.negative_sample_size]
+
+    #     self.negative_samples = torch.from_numpy(np.array(negatives))
+    
+    # def __getitem__(self, idx):
+    #     positive_sample = self.triples[idx]
+    #     head, relation, tail = positive_sample
+
+    #     subsampling_weight = self.count[(head, relation)] + self.count[(tail, -relation-1)]
+    #     subsampling_weight = torch.sqrt(1 / torch.Tensor([subsampling_weight]))
+
+    #     # fetch precomputed negatives
+    #     if self.negative_samples is None:
+    #         raise RuntimeError("Call `precompute_negatives()` before using dataset")
+
+    #     negative_sample = self.negative_samples[idx]
+
+    #     positive_sample = torch.LongTensor(positive_sample)
+
+    #     return positive_sample, negative_sample, subsampling_weight, self.mode
+
+    def __getitem__(self, idx): 
+        positive_sample = self.triples[idx] 
         head, relation, tail = positive_sample
 
         subsampling_weight = self.count[(head, relation)] + self.count[(tail, -relation-1)]
         subsampling_weight = torch.sqrt(1 / torch.Tensor([subsampling_weight]))
-        
         negative_sample_list = []
         negative_sample_size = 0
 
         while negative_sample_size < self.negative_sample_size:
             negative_sample_e = np.random.randint(self.nentity, size=self.negative_sample_size)
             negative_sample_r = np.random.randint(self.nrelation, size=self.negative_sample_size)
-            negative_sample = np.stack((negative_sample_e, negative_sample_r), axis=1)
+            # negative_sample = np.stack((negative_sample_e, negative_sample_r), axis=1)
+            negative_sample = negative_sample_e
 
             if self.mode == 'head-batch':
                 mask = ~np.isin(
-                    negative_sample, 
-                    self.true_head[(relation, tail)], 
+                    negative_sample,
+                    self.true_head[(relation, tail)],
                     assume_unique=True
                 )
             elif self.mode == 'tail-batch':
                 mask = ~np.isin(
-                    negative_sample, 
-                    self.true_tail[(head, relation)], 
+                    negative_sample,
+                    self.true_tail[(head, relation)],
                     assume_unique=True
                 )
             else:
@@ -59,14 +118,13 @@ class TrainDataset(Dataset):
             negative_sample = negative_sample[mask]
             negative_sample_list.append(negative_sample)
             negative_sample_size += negative_sample.size
-        
+
         negative_sample = np.concatenate(negative_sample_list)[:self.negative_sample_size]
         negative_sample = torch.LongTensor(negative_sample)
-
         positive_sample = torch.LongTensor(positive_sample)
-            
+
         return positive_sample, negative_sample, subsampling_weight, self.mode
-    
+
     @staticmethod
     def collate_fn(data):
         positive_sample = torch.stack([_[0] for _ in data], dim=0)
@@ -88,53 +146,6 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return self.len
-
-    # def __getitem__(self, idx):
-    #     positive_sample = self.triples[idx]
-
-    #     head, relation, tail = positive_sample
-        
-    #     negative_sample_list = []
-    #     negative_sample_size = 0
-
-    #     while negative_sample_size < self.negative_sample_size:
-    #         negative_sample_e = np.random.randint(self.nentity, size=self.negative_sample_size)
-    #         negative_sample_r = np.random.randint(self.nrelation, size=self.negative_sample_size)
-    #         negative_sample = np.stack((negative_sample_e, negative_sample_r), axis=1)
-
-    #         if self.mode == 'head-batch':
-    #             mask = ~np.isin(
-    #                 negative_sample, 
-    #                 self.true_head[(relation, tail)], 
-    #                 assume_unique=True
-    #             )
-    #         elif self.mode == 'tail-batch':
-    #             mask = ~np.isin(
-    #                 negative_sample, 
-    #                 self.true_tail[(head, relation)], 
-    #                 assume_unique=True
-    #             )
-    #         else:
-    #             raise ValueError('Training batch mode %s not supported' % self.mode)
-            
-    #         negative_sample = negative_sample[mask]
-    #         negative_sample_list.append(negative_sample)
-    #         negative_sample_size += negative_sample.size
-        
-    #     negative_sample = np.concatenate(negative_sample_list)[:self.negative_sample_size]
-    #     negative_sample = torch.LongTensor(negative_sample)
-
-    #     positive_sample = torch.LongTensor(positive_sample)
-            
-    #     return positive_sample, negative_sample, self.mode
-    
-    # @staticmethod
-    # def collate_fn(data):
-    #     positive_sample = torch.stack([_[0] for _ in data], dim=0)
-    #     negative_sample = torch.stack([_[1] for _ in data], dim=0)
-    #     mode = data[0][2]
-
-    #     return positive_sample, negative_sample, mode
 
     def __getitem__(self, idx):
         head, relation, tail = self.triples[idx]
@@ -215,7 +226,6 @@ def get_true_head_and_tail(triples):
     Build a dictionary of true triples that will
     be used to filter these true triples for negative sampling
     '''
-    #TODO: Dovrebbe essere ottenuta usando tutte le triplette, non solo quelle del train set
     
     true_head = {}
     true_tail = {}

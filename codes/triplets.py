@@ -11,7 +11,7 @@ import os
 from collections import defaultdict
 
 class TripletsEngine:
-    def __init__(self, path, from_splits=False, feat_path=None):
+    def __init__(self, path, from_splits=False, ext="csv", feat_path=None):
         self.path = path
         self.from_splits = from_splits
         self.feat_path = feat_path
@@ -20,11 +20,12 @@ class TripletsEngine:
         self.relation_to_id = {}
         self.number_of_entities = 0
         self.number_of_relations = 0
+        self.ext = ext
         if from_splits:
             self._load_triplets_from_splits(
-            os.path.join(path, "train.txt"),
-            os.path.join(path, "valid.txt"),
-            os.path.join(path, "test.txt")
+            os.path.join(path, "train."+ext),
+            os.path.join(path, "valid."+ext),
+            os.path.join(path, "test."+ext)
         )
         elif os.path.isdir(self.path) and os.path.isfile(self.path+'/entities.txt') and os.path.isfile(self.path+'/relations.txt'):
                 self._load_triplets_proc()
@@ -32,7 +33,8 @@ class TripletsEngine:
                 self._load_triplets()
         if feat_path:
             self._load_features()
-        self._generate_mappings()
+
+        # self._generate_mappings()
     
     def _load_triplets_proc(self):
         df = pd.read_csv(self.path+'/triplets.txt', sep='\t', header=None)
@@ -47,10 +49,16 @@ class TripletsEngine:
         self.relation_to_id = rels.set_index('name')['id'].to_dict()
 
     def _load_triplets_from_splits(self, train_file, valid_file, test_file):
-        # Load files
-        train_df = pd.read_csv(train_file, sep='\t', header=None)
-        valid_df = pd.read_csv(valid_file, sep='\t', header=None)
-        test_df  = pd.read_csv(test_file, sep='\t', header=None)
+        # Load file
+        if self.ext == 'txt':
+            sep = '\t'
+            train_df = pd.read_csv(train_file, sep=sep, header=None)
+            valid_df = pd.read_csv(valid_file, sep=sep, header=None)
+            test_df  = pd.read_csv(test_file, sep=sep, header=None)
+        else:
+            train_df = pd.read_csv(train_file, low_memory=False)
+            valid_df = pd.read_csv(valid_file, low_memory=False)
+            test_df  = pd.read_csv(test_file, low_memory=False)
 
         all_df = pd.concat([train_df, valid_df, test_df], ignore_index=True)
         self.triplets = all_df.values

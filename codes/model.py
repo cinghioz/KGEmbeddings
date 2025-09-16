@@ -76,6 +76,7 @@ class KGEModel(nn.Module):
         Because negative samples and positive samples usually share two elements 
         in their triple ((head, relation) or (relation, tail)).
         '''
+        relation_ids = []
 
         if mode == 'single':
             batch_size, negative_sample_size = sample.size(0), 1
@@ -97,6 +98,8 @@ class KGEModel(nn.Module):
                 dim=0, 
                 index=sample[:,2]
             ).unsqueeze(1)
+
+            relation_ids = sample[:,1]
             
         elif mode == 'head-batch':
             tail_part, head_part = sample
@@ -119,6 +122,8 @@ class KGEModel(nn.Module):
                 dim=0, 
                 index=tail_part[:, 2]
             ).unsqueeze(1)
+
+            relation_ids = tail_part[:,1]
             
         elif mode == 'tail-batch':
             head_part, tail_part = sample
@@ -141,6 +146,8 @@ class KGEModel(nn.Module):
                 dim=0, 
                 index=tail_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
+
+            relation_ids = head_part[:,1]
             
         else:
             raise ValueError('mode %s not supported' % mode)
@@ -156,7 +163,7 @@ class KGEModel(nn.Module):
         
         if self.model_name in model_func:
             if self.model_name in ['TransR']:
-                score = model_func[self.model_name](head, relation, tail, head_part[:, 1], mode)
+                score = model_func[self.model_name](head, relation, tail, relation_ids, mode)
             else:
                 score = model_func[self.model_name](head, relation, tail, mode)
         else:
@@ -171,34 +178,45 @@ class KGEModel(nn.Module):
             score = (head + relation) - tail
 
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
+        # score = self.gamma.item() - torch.norm(score, p=2, dim=2)
         return score
 
-    # TODO: Secondo me esplode (infatti, usare trick di ciclare sulle relation)
+    # TODO: anche riclando le relation rimane troppo memory intensive (strano)
     def TransR(self, head, relation, tail, idx_relation, mode):
-        # Project entities into relation space
-        batch_size = head.size(0)
-        if mode == "head-batch":
-            # head is [batch, neg, dim] ; relation is [batch, 1, dim] ; proj_matrix [batch, dim_r, dim_e]
-            proj = self.proj_matrix[idx_relation]  # [batch, dim_r, dim_e]
-            proj = proj.unsqueeze(1)                      # [batch, 1, dim_r, dim_e]
+        device = head.device
 
-            head = torch.matmul(head.unsqueeze(2), proj.transpose(2,3)).squeeze(2)
-            tail = torch.matmul(tail, proj.transpose(2,3)).squeeze(2)
-        elif mode == "tail-batch":
-            proj = self.proj_matrix[idx_relation]
-            proj = proj.unsqueeze(1)
+        proj_heads, proj_tails, proj_rels = [], [], []
+        unique_rel, inv_idx = torch.unique(idx_relation, return_inverse=True)
 
-            head = torch.matmul(head, proj.transpose(2,3)).squeeze(2)
-            tail = torch.matmul(tail.unsqueeze(2), proj.transpose(2,3)).squeeze(2)
-        else:  # single
-            proj = self.proj_matrix[idx_relation]  # [batch, dim_r, dim_e]
+        for r_idx in unique_rel:
+            mask = (idx_relation == r_idx)
+            h_r = head[mask]       # [n, 1, dim_e]
+            t_r = tail[mask]       # [n, 1, dim_e]
+            rel_r = relation[mask] # [n, 1, dim_e]
 
-            head = torch.bmm(head, proj.transpose(1,2))
-            tail = torch.bmm(tail, proj.transpose(1,2))
+            proj = self.proj_matrix[r_idx].to(device)  # [dim_r, dim_e]
+            proj_t = proj.t().unsqueeze(0)             # [1, dim_e, dim_r]
 
-        # TransE-like scoring
-        score = (head + relation) - tail
-        score = self.gamma.item() - torch.norm(score, p=2, dim=2)
+            # project both head and tail
+            h_r = torch.matmul(h_r, proj_t)  # [n, 1, dim_r]
+            t_r = torch.matmul(t_r, proj_t)  # [n, 1, dim_r]
+
+            proj_heads.append(h_r)
+            proj_tails.append(t_r)
+            proj_rels.append(rel_r)
+
+        # Concatenate and restore original order
+        proj_heads = torch.cat(proj_heads, dim=0)[inv_idx]
+        proj_tails = torch.cat(proj_tails, dim=0)[inv_idx]
+        relation   = torch.cat(proj_rels, dim=0)[inv_idx]
+
+        if mode == 'head-batch':
+            score = proj_heads + (relation - proj_tails)
+        else:
+            score = (proj_heads + relation) - proj_tails
+
+        score = self.gamma.item() - torch.norm(score, p=2, dim=-1)
+
         return score
 
     def DistMult(self, head, relation, tail, mode):
@@ -332,6 +350,9 @@ class KGEModel(nn.Module):
             'negative_sample_loss': negative_sample_loss.item(),
             'loss': loss.item()
         }
+
+        del positive_sample, negative_sample, positive_score, negative_score, subsampling_weight
+        torch.cuda.empty_cache()
 
         return log
 
@@ -501,6 +522,9 @@ class KGEModel(nn.Module):
 
             for metric in logs[0].keys():
                 metrics[metric] = sum([log[metric] for log in logs])/len(logs)
+
+            del positive_sample, negative_sample, filter_bias, score, argsort
+            torch.cuda.empty_cache()
 
         return metrics
     
