@@ -34,7 +34,7 @@ class TripletsEngine:
         if feat_path:
             self._load_features()
 
-        # self._generate_mappings()
+        self._generate_mappings()
     
     def _load_triplets_proc(self):
         df = pd.read_csv(self.path+'/triplets.txt', sep='\t', header=None)

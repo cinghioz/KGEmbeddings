@@ -200,7 +200,6 @@ class BidirectionalOneShotIterator(object):
             for data in dataloader:
                 yield data
 
-
 @staticmethod
 def count_frequency(triples, start=4):
     '''

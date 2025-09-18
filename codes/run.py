@@ -78,7 +78,7 @@ def main(args):
     # all_true_triples = train_triples + valid_triples + test_triples
     # ###               OLD CODE END                     ###
 
-    kg = TripletsEngine(os.path.join(args.data_path), from_splits=True)
+    kg = TripletsEngine(os.path.join(args.data_path), ext="txt", from_splits=True)
 
     args.nentity = kg.number_of_entities
     args.nrelation = kg.number_of_relations

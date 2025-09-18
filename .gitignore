@@ -6,3 +6,4 @@ codes/__pycache__/
 queries-medium.pkl
 queries-big.pkl
 data/primekg
+queries/primekg

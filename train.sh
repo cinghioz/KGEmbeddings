@@ -4,12 +4,12 @@ CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
  --do_valid \
  --do_test \
  --cpu_num 48 \
- --data_path data/primekg \
+ --data_path data/FB15k-237 \
  --model TransE \
  -n 1 -b 500000 -d 512 \
  -g 24.0 -a 1.0 -adv \
  -lr 0.0005 --max_steps 100000 \
- -save models/TransE_primekg_0 --test_batch_size 25
+ -save models/TransE_FB-237_0 --test_batch_size 128
 
 # # RotatE
 #  CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
@@ -37,3 +37,15 @@ CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
 #  -lr 0.0005 --max_steps 100000 \
 #  -save models/TransR_FB15k_0 --test_batch_size 64
 
+# DistMult
+# CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
+#  --cuda \
+#  --do_valid \
+#  --do_test \
+#  --cpu_num 48 \
+#  --data_path data/FB15k \
+#  --model DistMult \
+#  -n 1 -b 500000 -d 512 \
+#  -g 100.0 -a 1.0 -adv \
+#  -lr 0.0005 --max_steps 100000 \
+#  -save models/DistMult_FB15k_0 -r 0.000002 --test_batch_size 128

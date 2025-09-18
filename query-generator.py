@@ -8,56 +8,18 @@ from collections import defaultdict
 import random
 from tqdm import tqdm
 import pickle 
-
-from codes.model import KGEModel
-from codes.dataloader import TrainDataset, TestDataset
 from codes.triplets import TripletsEngine
 
-# --- Configuration ---
-# The dimensionality of your embeddings (e.g., 50, 100, 200)
-EMBEDDING_DIM = 512
-MODEL_PATH = "/home/cc/phd/KGEmbeddings/models/TransE_FB15k_0/"
-# MODEL_PATH = "/home/cc/phd/KGEmbeddings/models/RotatE_FB15k_0/"
-DICTS_DIR = '/home/cc/phd/KGEmbeddings/data/FB15k'
+DICTS_DIR = '/home/cc/phd/KGEmbeddings/data/primekg/'
 
 random.seed(42)
 
-kg = TripletsEngine(os.path.join(DICTS_DIR), from_splits=True)
-
-# (head, relation) -> list of tails
-h2t = defaultdict(list)
-
-# (relation, tail) -> list of heads
-r2h = defaultdict(list)
-
-indexing_dict = defaultdict(dict)
-
-for triple in kg.triplets:
-    head, relation, tail = tuple(triple)
-    h2t[(head, relation)].append(tail)
-    r2h[(tail, relation)].append(head)
-
-    if head not in indexing_dict:
-        indexing_dict[head] = {'in': np.empty((0, 2), dtype=np.int64),
-                            'out': np.empty((0, 2), dtype=np.int64),
-                            'count': 0}
-    if tail not in indexing_dict:
-        indexing_dict[tail] = {'in': np.empty((0, 2), dtype=np.int64),
-                            'out': np.empty((0, 2), dtype=np.int64),
-                            'count': 0}
-
-    indexing_dict[head]['out'] = np.vstack([indexing_dict[head]['out'], [tail, relation]])
-    indexing_dict[head]['count'] += 1
-
-    indexing_dict[tail]['in']  = np.vstack([indexing_dict[tail]['in'], [head, relation]])
-    indexing_dict[tail]['count'] += 1
-
 # TODO: Ci sono delle query che non hanno struttura corretta, non so perchè. Controlla la f
-def find_queries(h2t, indexing_dict, n_pairs=5, n_queries=10000):
+def find_queries(h2t, indexing_dict, n_pairs=3, n_queries=10000):
     queries = []
     results = []
-
-    for node in tqdm(indexing_dict.keys()):
+    cnt = 0
+    for node in indexing_dict.keys():
         if indexing_dict[node]['count'] < 4 or indexing_dict[node]['count'] > 500:
             continue
 
@@ -131,14 +93,55 @@ def find_queries(h2t, indexing_dict, n_pairs=5, n_queries=10000):
             except:
                 continue
 
+        if cnt % 5 == 0:
+            print(f"Queries generated: {len(queries)} -> remaining nodes: {len(indexing_dict.keys()) - cnt}")
+        cnt += 1
+
     return queries, results
 
-queries, results = find_queries(h2t, indexing_dict, n_pairs=15, n_queries=500000)
+if __name__ == '__main__':
+    kg = TripletsEngine(os.path.join(DICTS_DIR), ext="csv", from_splits=True)
 
-save_dict = {
-    'queries': queries,
-    'results': results
-}
+    # (head, relation) -> list of tails
+    h2t = defaultdict(list)
 
-with open('queries-big.pkl', 'wb') as f:
-    pickle.dump(save_dict, f)
+    # (relation, tail) -> list of heads
+    r2h = defaultdict(list)
+
+    indexing_dict = defaultdict(dict)
+
+    print("Indexing Start.")
+
+    for triple in kg.triplets:
+        head, relation, tail = tuple(triple)
+        h2t[(head, relation)].append(tail)
+        r2h[(tail, relation)].append(head)
+
+        if head not in indexing_dict:
+            indexing_dict[head] = {'in': np.empty((0, 2), dtype=np.int64),
+                                'out': np.empty((0, 2), dtype=np.int64),
+                                'count': 0}
+        if tail not in indexing_dict:
+            indexing_dict[tail] = {'in': np.empty((0, 2), dtype=np.int64),
+                                'out': np.empty((0, 2), dtype=np.int64),
+                                'count': 0}
+
+        indexing_dict[head]['out'] = np.vstack([indexing_dict[head]['out'], [tail, relation]])
+        indexing_dict[head]['count'] += 1
+
+        indexing_dict[tail]['in']  = np.vstack([indexing_dict[tail]['in'], [head, relation]])
+        indexing_dict[tail]['count'] += 1
+
+    print("Indexing done.")
+
+    queries, results = find_queries(h2t, indexing_dict, n_pairs=5, n_queries=10000)
+
+    save_dict = {
+        'queries': queries,
+        'results': results
+    }
+
+    with open('/home/cc/phd/KGEmbeddings/queries/primekg/queries.pkl', 'wb') as f:
+        pickle.dump(save_dict, f)
+
+    print("Queries generated and saved correctly!")
