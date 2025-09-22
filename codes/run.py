@@ -78,7 +78,9 @@ def main(args):
     # all_true_triples = train_triples + valid_triples + test_triples
     # ###               OLD CODE END                     ###
 
-    kg = TripletsEngine(os.path.join(args.data_path), ext="txt", from_splits=True)
+    logging.info('Indexing triplets from %s' % args.data_path)
+    kg = TripletsEngine(os.path.join(args.data_path), ext="csv", from_splits=True)
+    logging.info('End indexing')
 
     args.nentity = kg.number_of_entities
     args.nrelation = kg.number_of_relations

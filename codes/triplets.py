@@ -34,7 +34,15 @@ class TripletsEngine:
         if feat_path:
             self._load_features()
 
-        self._generate_mappings()
+        if os.path.isdir("triplets/"+self.path.split('/')[-1]):
+            path = "triplets/"+self.path.split('/')[-1]
+            print("Loading precomputed mappings...")    
+            self.indexing_dict = np.load(path+"/indexing.npy", allow_pickle=True).item()
+            self.h2t = np.load(path+"/h2t.npy", allow_pickle=True).item()
+            self.t2h = np.load(path+"/t2h.npy", allow_pickle=True).item()
+        else:
+            print("Generating mappings...")
+            self._generate_mappings("triplets/"+self.path.split('/')[-1])
     
     def _load_triplets_proc(self):
         df = pd.read_csv(self.path+'/triplets.txt', sep='\t', header=None)
@@ -61,6 +69,10 @@ class TripletsEngine:
             test_df  = pd.read_csv(test_file, low_memory=False)
 
         all_df = pd.concat([train_df, valid_df, test_df], ignore_index=True)
+
+        if self.ext != 'txt':
+            all_df = all_df[['head_id', 'relation_id', 'tail_id']]
+
         self.triplets = all_df.values
 
         self._index_triplets()
@@ -110,19 +122,19 @@ class TripletsEngine:
     def _load_features(self):
         self.node_features = torch.load(self.feat_path)
 
-    def _generate_mappings(self):
+    def _generate_mappings(self, save_path=None):
         # (head, relation) -> list of tails
         self.h2t = defaultdict(list)
 
         # (relation, tail) -> list of heads
-        self.r2h = defaultdict(list)
+        self.t2h = defaultdict(list)
 
         self.indexing_dict = defaultdict(dict)
 
         for triple in self.triplets:
             head, relation, tail = tuple(triple)
             self.h2t[(head, relation)].append(tail)
-            self.r2h[(tail, relation)].append(head)
+            self.t2h[(tail, relation)].append(head)
 
             if head not in self.indexing_dict:
                 self.indexing_dict[head] = {'in': np.empty((0, 2), dtype=np.int64),
@@ -138,6 +150,12 @@ class TripletsEngine:
 
             self.indexing_dict[tail]['in']  = np.vstack([self.indexing_dict[tail]['in'], [head, relation]])
             self.indexing_dict[tail]['count'] += 1
+
+        if save_path:
+            os.makedirs(save_path, exist_ok=True)
+            np.save(save_path+"/indexing.npy", self.indexing_dict)
+            np.save(save_path+"/h2t.npy", self.h2t)
+            np.save(save_path+"/t2h.npy", self.t2h)
 
     def split_triplets(self, train_ratio=0.7, valid_ratio=0.10, inductive=False, seed=42):
         np.random.seed(seed)

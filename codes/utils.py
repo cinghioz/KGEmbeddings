@@ -43,8 +43,8 @@ def parse_args(args=None):
     parser.add_argument('--max_steps', default=100000, type=int)
     parser.add_argument('--warm_up_steps', default=15000, type=int)
     
-    parser.add_argument('--save_checkpoint_steps', default=2500, type=int)
-    parser.add_argument('--valid_steps', default=5000, type=int)
+    parser.add_argument('--save_checkpoint_steps', default=1000, type=int)
+    parser.add_argument('--valid_steps', default=5005, type=int)
     parser.add_argument('--log_steps', default=500, type=int, help='train log every xx steps')
     parser.add_argument('--test_log_steps', default=1000, type=int, help='valid/test log every xx steps')
     
