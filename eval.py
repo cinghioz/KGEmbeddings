@@ -14,7 +14,7 @@ from codes.dataloader import TrainDataset, TestDataset
 from codes.triplets import TripletsEngine
 
 EMBEDDING_DIM = 512
-DATA = "umls"
+DATA = "primekg"
 MODEL_PATH = f"/home/cc/phd/KGEmbeddings/models/TransE_{DATA}_0"
 DICTS_DIR = f'/home/cc/phd/KGEmbeddings/data/{DATA}'
 
@@ -72,7 +72,8 @@ if __name__== "__main__":
         "test_log_steps": 1000,
         "nentity": number_of_entities,
         "nrelation": number_of_relations,
-        "mode": "tail-batch"
+        "mode": "tail-batch",
+        "device": device
     }
 
     class DictToObject:
@@ -102,7 +103,7 @@ if __name__== "__main__":
         warm_up_steps = checkpoint['warm_up_steps']
         # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
-    kg = TripletsEngine(os.path.join(DICTS_DIR), from_splits=True)
+    kg = TripletsEngine(os.path.join(DICTS_DIR), from_splits=True, ext="csv")
 
     n = 100000
     ids = np.random.randint(0, len(kg.triplets), size=n)
@@ -119,19 +120,21 @@ if __name__== "__main__":
 
     kge_model.eval()
 
-    # TODO: Fare search in vector space batched
-    # TODO: se il numero di entities è troppo grande, devo fare batched anche il single step
+    if args.mode == 'head-batch':
+        adj = {k: torch.tensor(v, device=device) for k, v in kg.t2h.items()}
+    else:
+        adj = {k: torch.tensor(v, device=device) for k, v in kg.h2t.items()}
 
     for id in tqdm(ids):
         target_head, target_relation, target_tail = kg.triplets[id]
 
         if args.mode == 'head-batch':
-            targets = kg.t2h[(target_relation, target_tail)]
+            targets = kg.t2h[(target_tail, target_relation)]
         else:
             targets = kg.h2t[(target_head, target_relation)]
 
         try:
-            res = kge_model.single_test_step(kge_model, targets, (target_head, target_relation, target_tail), kg.triplets, args)
+            res = kge_model.single_test_step(kge_model, adj, (target_head, target_relation, target_tail), args)
             metrics['MRR'].append(res['MRR'])
             metrics['HITS@1'].append(res['HITS@1'])
             metrics['HITS@3'].append(res['HITS@3'])
