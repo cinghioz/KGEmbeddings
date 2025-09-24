@@ -10,16 +10,19 @@ Average Recall over 54646 complex queries (2p1): 0.6793614122961958
 Average MRR over 54646 complex queries (2pi): 0.2489103712160543
 Average Recall@K over 54646 complex queries (2p1): 5: 0.43156353135023284, 10: 0.43156353135023284, 
 25: 0.4979180986205978, 50: 0.5872743981953639
-Average Hits@K over 54646 complex queries (2pi): 1: 0.1065524256276476, 3: 0.27624153363808246, 
-5: 0.3968561376636431, 10: 0.601946246080942, 25: 0.832202570423378
+Average Hits@K over 54646 complex queries (2pi): 1: 0.1065524256276476, 3: 0.27624153363808246, 5: 0.3968561376636431, 
+10: 0.601946246080942, 25: 0.832202570423378
+Average MAP@K over 54646 complex queries (2p1): 5: 0.34595961837142225, 10: 0.32713778566674057, 
+25: 0.28307255380519203, 50: 0.2192269802529399
 
 -----------------------------------------------------------------------------------------------------------------
 
 Transe UMLS query 1 hop
 
-Average MRR over 100000 random triplets: 0.44150483645890626
-Average HITS@1, HITS@3, HITS@10, HITS@25 over 100000 random triplets: 0.16836, 0.67444, 0.85124, 0.9152
-Average Recall over 100000 random triplets: 0.5333210559294689
+Average MRR over 1000000 random triplets: 0.42762214227226614
+Average Recall over 1000000 random triplets: 0.5429521082032719
+Average HITS@1, HITS@3, HITS@10, HITS@25 over 1000000 random triplets: 0.15982, 0.64694, 0.85232, 0.9242
+Average MAP@5, MAP@10, MAP@25 over 1000000 random triplets: 0.42718, 0.385128, 0.28229
 
 Transe UMLS complex query 2 hop
 

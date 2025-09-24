@@ -14,7 +14,7 @@ from dataloader import TestDataset
 
 class KGEModel(nn.Module):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma, 
-                 double_entity_embedding=False, double_relation_embedding=False):
+                 num_gnn_layers=2, double_entity_embedding=False, double_relation_embedding=False):
         super(KGEModel, self).__init__()
         self.model_name = model_name
         self.nentity = nentity
@@ -22,6 +22,7 @@ class KGEModel(nn.Module):
         self.hidden_dim = hidden_dim
         self.epsilon = 2.0
         self.pi = 3.14159265358979323846
+        self.num_gnn_layers = num_gnn_layers
         
         self.gamma = nn.Parameter(
             torch.Tensor([gamma]), 
@@ -50,6 +51,12 @@ class KGEModel(nn.Module):
             b=self.embedding_range.item()
         )
 
+        if self.num_gnn_layers > 0:
+            self.rgcn_layers = nn.ModuleList()
+            self.rgcn_layers.append(RGCNConv(self.entity_dim, self.entity_dim, nrelation))
+            for _ in range(1, self.num_gnn_layers):
+                self.rgcn_layers.append(RGCNConv(self.entity_dim, self.entity_dim, nrelation))
+
         if model_name == "TransR":
             self.proj_matrix = nn.Parameter(torch.zeros(nrelation, self.relation_dim, self.entity_dim))
             nn.init.xavier_uniform_(self.proj_matrix)
@@ -66,36 +73,45 @@ class KGEModel(nn.Module):
 
         if model_name == 'ComplEx' and (not double_entity_embedding or not double_relation_embedding):
             raise ValueError('ComplEx should use --double_entity_embedding and --double_relation_embedding')
+
+    def run_rgcn(self, edge_index, edge_type):
+        x = self.entity_embedding
+        for layer in self.rgcn_layers:
+            x = layer(x, edge_index, edge_type)
+            x = F.relu(x)
+            # x = F.normalize(x, p=2, dim=-1)
+
+        return x, self.relation_embedding  # entities updated, relations unchanged (still trainable)
         
-    def forward(self, sample, mode='single'):
-        '''
-        Forward function that calculate the score of a batch of triples.
-        In the 'single' mode, sample is a batch of triple.
-        In the 'head-batch' or 'tail-batch' mode, sample consists two part.
-        The first part is usually the positive sample.
-        And the second part is the entities in the negative samples.
-        Because negative samples and positive samples usually share two elements 
-        in their triple ((head, relation) or (relation, tail)).
-        '''
+    def forward(self, sample, mode='single', edge_index=None, edge_type=None):
+        if self.num_gnn_layers > 0:
+            if edge_index is None or edge_type is None:
+                raise ValueError("edge_index and edge_type must be provided when num_gnn_layers > 0")
+            entity_emb, relation_emb = self.run_rgcn(edge_index, edge_type)
+            # with torch.no_grad():
+            #     entity_emb.clamp_(-self.embedding_range, self.embedding_range)
+        else:
+            entity_emb, relation_emb = self.entity_embedding, self.relation_embedding
+
         relation_ids = []
 
         if mode == 'single':
             batch_size, negative_sample_size = sample.size(0), 1
             
             head = torch.index_select(
-                self.entity_embedding, 
+                entity_emb, 
                 dim=0, 
                 index=sample[:,0]
             ).unsqueeze(1)
             
             relation = torch.index_select(
-                self.relation_embedding, 
+                relation_emb, 
                 dim=0, 
                 index=sample[:,1]
             ).unsqueeze(1)
             
             tail = torch.index_select(
-                self.entity_embedding, 
+                entity_emb, 
                 dim=0, 
                 index=sample[:,2]
             ).unsqueeze(1)
@@ -107,19 +123,19 @@ class KGEModel(nn.Module):
             batch_size, negative_sample_size = head_part.size(0), head_part.size(1)
             
             head = torch.index_select(
-                self.entity_embedding, 
+                entity_emb, 
                 dim=0, 
                 index=head_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
             
             relation = torch.index_select(
-                self.relation_embedding, 
+                relation_emb, 
                 dim=0, 
                 index=tail_part[:, 1]
             ).unsqueeze(1)
             
             tail = torch.index_select(
-                self.entity_embedding, 
+                entity_emb, 
                 dim=0, 
                 index=tail_part[:, 2]
             ).unsqueeze(1)
@@ -131,19 +147,19 @@ class KGEModel(nn.Module):
             batch_size, negative_sample_size = tail_part.size(0), tail_part.size(1)
             
             head = torch.index_select(
-                self.entity_embedding, 
+                entity_emb, 
                 dim=0, 
                 index=head_part[:, 0]
             ).unsqueeze(1)
             
             relation = torch.index_select(
-                self.relation_embedding,
+                relation_emb,
                 dim=0,
                 index=head_part[:, 1]
             ).unsqueeze(1)
             
             tail = torch.index_select(
-                self.entity_embedding, 
+                entity_emb, 
                 dim=0, 
                 index=tail_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
@@ -293,7 +309,7 @@ class KGEModel(nn.Module):
         return score
     
     @staticmethod
-    def train_step(model, optimizer, train_iterator, args):
+    def train_step(model, optimizer, train_iterator, ei, et, args):
         '''
         A single train step. Apply back-propation and return the loss
         '''
@@ -309,7 +325,7 @@ class KGEModel(nn.Module):
             negative_sample = negative_sample.cuda()
             subsampling_weight = subsampling_weight.cuda()
 
-        negative_score = model((positive_sample, negative_sample), mode=mode)
+        negative_score = model((positive_sample, negative_sample), mode=mode, edge_index=ei, edge_type=et)
 
         if args.negative_adversarial_sampling:
             # In self-adversarial sampling, we do not apply back-propagation on the sampling weight

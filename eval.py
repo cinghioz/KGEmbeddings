@@ -116,6 +116,9 @@ if __name__== "__main__":
         'HITS@3': [],
         'HITS@10': [],
         'HITS@25': [],
+        'MAP@5': [],
+        'MAP@10': [],
+        'MAP@25': [],
     }
 
     kge_model.eval()
@@ -124,6 +127,8 @@ if __name__== "__main__":
         adj = {k: torch.tensor(v, device=device) for k, v in kg.t2h.items()}
     else:
         adj = {k: torch.tensor(v, device=device) for k, v in kg.h2t.items()}
+
+    cnt = 0
 
     for id in tqdm(ids):
         target_head, target_relation, target_tail = kg.triplets[id]
@@ -147,8 +152,20 @@ if __name__== "__main__":
         top_ids, dists = predict(int(target_head), int(target_relation), int(target_tail), entity_embedding, relation_embedding, mode=args.mode, top_k=max(15, int(len(targets)*1.5)))
 
         recall.append(torch.isin(top_ids, torch.tensor(targets)).sum().item() / len(targets))
-        # print(torch.isin(top_ids, torch.tensor(targets)).sum().item() / len(targets))
 
-print(f"Average MRR over {n} random triplets: {np.mean(metrics['MRR'])}")
-print(f"Average HITS@1, HITS@3, HITS@10, HITS@25 over {n} random triplets: {np.mean(metrics['HITS@1'])}, {np.mean(metrics['HITS@3'])}, {np.mean(metrics['HITS@10'])}, {np.mean(metrics['HITS@25'])}")
-print(f"Average Recall over {n} random triplets: {np.mean(recall)}")
+        for k in [5, 10, 25]:
+            hits_k = torch.isin(top_ids[:k], torch.tensor(targets)).sum().item()
+            metrics[f'MAP@{k}'].append(hits_k / k)
+            
+        cnt += 1
+        # print(torch.isin(top_ids, torch.tensor(targets)).sum().item() / len(targets))
+        if cnt % 10000 == 0:
+            print(f"Average MRR over {n} random triplets: {np.mean(metrics['MRR'])}")
+            print(f"Average Recall over {n} random triplets: {np.mean(recall)}")
+            print(f"Average HITS@1, HITS@3, HITS@10, HITS@25 over {n} random triplets: {np.mean(metrics['HITS@1'])}, {np.mean(metrics['HITS@3'])}, {np.mean(metrics['HITS@10'])}, {np.mean(metrics['HITS@25'])}")
+            print(f"Average MAP@5, MAP@10, MAP@25 over {n} random triplets: {np.mean(metrics['MAP@5'])}, {np.mean(metrics['MAP@10'])}, {np.mean(metrics['MAP@25'])}")
+
+    print(f"Average MRR over {n} random triplets: {np.mean(metrics['MRR'])}")
+    print(f"Average HITS@1, HITS@3, HITS@10, HITS@25 over {n} random triplets: {np.mean(metrics['HITS@1'])}, {np.mean(metrics['HITS@3'])}, {np.mean(metrics['HITS@10'])}, {np.mean(metrics['HITS@25'])}")
+    print(f"Average Recall over {n} random triplets: {np.mean(recall)}")
+    print(f"Average MAP@5, MAP@10, MAP@25 over {n} random triplets: {np.mean(metrics['MAP@5'])}, {np.mean(metrics['MAP@10'])}, {np.mean(metrics['MAP@25'])}")

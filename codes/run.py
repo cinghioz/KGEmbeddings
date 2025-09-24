@@ -4,7 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-
 import time
 import json
 import logging
@@ -15,6 +14,7 @@ import torch
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
+# from model_rgcn import KGEModel
 from model import KGEModel
 
 from dataloader import TrainDataset
@@ -22,7 +22,6 @@ from dataloader import BidirectionalOneShotIterator
 
 from utils import override_config, set_logger, save_model, log_metrics, parse_args
 from triplets import TripletsEngine
-        
         
 def main(args):
     if (not args.do_train) and (not args.do_valid) and (not args.do_test):
@@ -79,7 +78,7 @@ def main(args):
     # ###               OLD CODE END                     ###
 
     logging.info('Indexing triplets from %s' % args.data_path)
-    kg = TripletsEngine(os.path.join(args.data_path), ext="csv", from_splits=True)
+    kg = TripletsEngine(os.path.join(args.data_path), ext="txt", from_splits=True)
     logging.info('End indexing')
 
     args.nentity = kg.number_of_entities
@@ -104,6 +103,9 @@ def main(args):
         double_entity_embedding=args.double_entity_embedding,
         double_relation_embedding=args.double_relation_embedding
     )
+
+    # edge_index = torch.LongTensor(kg.triplets[kg.train_set][:, [0,2]].T).to("cuda")
+    # edge_type = torch.LongTensor(kg.triplets[kg.train_set][:, 1]).to("cuda")
     
     logging.info('Model Parameter Configuration:')
     for name, param in kge_model.named_parameters():
@@ -189,7 +191,7 @@ def main(args):
         
         #Training Loop
         for step in tqdm(range(init_step, args.max_steps)):
-            
+            # log = kge_model.train_step(kge_model, optimizer, train_iterator, edge_index, edge_type, args)
             log = kge_model.train_step(kge_model, optimizer, train_iterator, args)
 
             training_logs.append(log)
