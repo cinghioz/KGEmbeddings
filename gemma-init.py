@@ -27,9 +27,10 @@ model = SentenceTransformer("google/embeddinggemma-300m")
 print("Starting encoding...")
 
 embeddings = model.encode([umls_ents[key]['concept_name'] for key in list(umls_map.keys())],
-                          batch_size=64, truncate_dim=EMBEDDING_DIM, device='cuda')
+                          batch_size=128, truncate_dim=EMBEDDING_DIM, device='cuda', 
+                          show_progress_bar=True)
 
-torch.save(embeddings, f"{DICTS_DIR}/features.pt")
+torch.save(embeddings, f"{DICTS_DIR}/features.pt", pickle_protocol=4)
 
 print("Encoding finished. and features saved!")
 

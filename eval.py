@@ -14,7 +14,7 @@ from codes.dataloader import TrainDataset, TestDataset
 from codes.triplets import TripletsEngine
 
 EMBEDDING_DIM = 512
-DATA = "primekg"
+DATA = "umls"
 MODEL_PATH = f"/home/cc/phd/KGEmbeddings/models/TransE_{DATA}_0"
 DICTS_DIR = f'/home/cc/phd/KGEmbeddings/data/{DATA}'
 
@@ -105,7 +105,7 @@ if __name__== "__main__":
 
     kg = TripletsEngine(os.path.join(DICTS_DIR), from_splits=True, ext="csv")
 
-    n = 100000
+    n = 1000000
     ids = np.random.randint(0, len(kg.triplets), size=n)
     mrr = []
     recall = []

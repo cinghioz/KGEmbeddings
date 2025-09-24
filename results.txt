@@ -1,3 +1,20 @@
+Transe FB15k query 1 hop
+
+Average MRR over 100000 random triplets: 0.7897171687484563
+Average HITS@1, HITS@3, HITS@10, HITS@25 over 100000 random triplets: 0.67973, 0.88218, 0.9548, 0.98114
+Average Recall over 100000 random triplets: 0.9734301573301174
+
+Transe FB15k complex query 2 hop
+
+Average Recall over 54646 complex queries (2p1): 0.6793614122961958
+Average MRR over 54646 complex queries (2pi): 0.2489103712160543
+Average Recall@K over 54646 complex queries (2p1): 5: 0.43156353135023284, 10: 0.43156353135023284, 
+25: 0.4979180986205978, 50: 0.5872743981953639
+Average Hits@K over 54646 complex queries (2pi): 1: 0.1065524256276476, 3: 0.27624153363808246, 
+5: 0.3968561376636431, 10: 0.601946246080942, 25: 0.832202570423378
+
+-----------------------------------------------------------------------------------------------------------------
+
 Transe UMLS query 1 hop
 
 Average MRR over 100000 random triplets: 0.44150483645890626
@@ -13,6 +30,7 @@ Average Recall@K over 88273 complex queries (2p1): 5: 0.13088648147871482, 10: 0
 Average Hits@K over 88273 complex queries (2pi): 1: 0.04673716619668587, 3: 0.26462643399603275, 
 5: 0.33951470203121403, 10: 0.4418494624278209, 25: 0.5748687357396157
 
+-----------------------------------------------------------------------------------------------------------------
 
 Transe PrimeKG query 1 hop
 
@@ -22,9 +40,7 @@ Average Recall over 100000 random triplets: 0.7733588693694894
 
 Transe PrimeKG complex query 2 hop
 
-Average Recall over 10000 complex queries (2p1): 0.03628576957373456
-Average MRR over 10000 complex queries (2pi): 0.01098440062033581
-Average Recall@K over 10000 complex queries (2p1): 5: 0.0167066706913128, 10: 0.0167066706913128, 
-25: 0.017428898172983622, 50: 0.02048741518069211
-Average Hits@K over 10000 complex queries (2pi): 1: 0.0, 3: 0.012472867388343783, 5: 0.020465077365708097, 
-10: 0.03540137673311736, 25: 0.0693293422636616
+Average Recall over 13405 complex queries (2p1): 0.04147383695607098
+Average MRR over 13405 complex queries (2pi): 0.010893148512478534
+Average Recall@K over 13405 complex queries (2p1): 5: 0.01821013572393771, 10: 0.01821013572393771, 25: 0.019006672909214123, 50: 0.022304352570146964
+Average Hits@K over 13405 complex queries (2pi): 1: 0.0, 3: 0.012389071566568809, 5: 0.02063054851980724, 10: 0.03503047332262445, 25: 0.06803834384918936
