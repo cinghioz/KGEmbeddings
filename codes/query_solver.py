@@ -18,7 +18,7 @@ class GeometricSolver:
         self.k_r = k_results
         self.pi = 3.14159265358979323846
         self.h2t = h2t
-        self.checkpoint = torch.load(os.path.join(model_path, 'checkpoint'))
+        # self.checkpoint = torch.load(os.path.join(model_path, 'checkpoint'), weights_only=True, map_location=device)
         self.L = 2
         self._load_embeddings()
         self._initialize_metrics()
