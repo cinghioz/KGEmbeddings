@@ -8,4 +8,6 @@ queries-big.pkl
 data/primekg
 queries/primekg
 data/umls
+data/umls-old
 queries/umls
+queries/umls-old
