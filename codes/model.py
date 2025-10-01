@@ -461,7 +461,8 @@ class KGEModel(nn.Module):
             if args.mode == 'head-batch':
                 candidates = torch.arange(args.nentity, device=args.device)
 
-                known_heads = adj.get((tail, relation), torch.empty(0, device=args.device, dtype=torch.long))
+                known_heads = adj.get((tail, relation), torch.empty(0, dtype=torch.long))
+                known_heads = known_heads.to(args.device)
 
                 # mask them out in one go
                 mask = torch.zeros(args.nentity, device=args.device, dtype=torch.bool)
