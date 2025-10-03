@@ -214,7 +214,13 @@ class GeometricSolver:
         h, r = query
         ids, dist = self._predict(int(h), int(r), int(h), mode=mode, last=True)
 
+        print(len(ids))
+        print(len(to_remove))
+        print(true in to_remove)
+        print("---------------------------")
+
         filtered_ids = [i for i in ids.cpu().tolist() if i not in to_remove]
+        # filtered_ids = ids.cpu().tolist()
 
         self._evaluate_query(torch.tensor(filtered_ids), [true])
 
