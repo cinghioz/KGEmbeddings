@@ -86,7 +86,7 @@ class GeometricSolver:
         re_head, im_head = torch.chunk(head, 2, dim=-1)
         re_tail, im_tail = torch.chunk(tail, 2, dim=-1)
 
-        embedding_range = torch.tensor([[0.1016]], device=self.device)
+        embedding_range = torch.tensor([[0.1300]], device=self.device)
 
         # map relation to phase in [-pi, pi]
         phase_relation = rel / (embedding_range.item() / self.pi) # TODO: check embedding range. Per tutti i parametri legati al modello, caricare da ckpt
@@ -214,10 +214,10 @@ class GeometricSolver:
         h, r = query
         ids, dist = self._predict(int(h), int(r), int(h), mode=mode, last=True)
 
-        print(len(ids))
-        print(len(to_remove))
-        print(true in to_remove)
-        print("---------------------------")
+        # print(len(ids))
+        # print(len(to_remove))
+        # print(true in to_remove)
+        # print("---------------------------")
 
         filtered_ids = [i for i in ids.cpu().tolist() if i not in to_remove]
         # filtered_ids = ids.cpu().tolist()

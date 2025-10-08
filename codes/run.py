@@ -78,7 +78,7 @@ def main(args):
     # ###               OLD CODE END                     ###
 
     logging.info('Indexing triplets from %s' % args.data_path)
-    kg = TripletsEngine(os.path.join(args.data_path), ext="txt", from_splits=True)
+    kg = TripletsEngine(os.path.join(args.data_path), ext="csv", from_splits=True)
     logging.info('End indexing')
 
     args.nentity = kg.number_of_entities
@@ -204,8 +204,8 @@ def main(args):
                     lr=current_learning_rate
                 )
                 warm_up_steps = warm_up_steps * 3
-            
-            if step % args.save_checkpoint_steps == 0:
+
+            if (step+1) % args.save_checkpoint_steps == 0:
                 print('Saving model at step %d...' % step)
                 save_variable_list = {
                     'step': step, 
