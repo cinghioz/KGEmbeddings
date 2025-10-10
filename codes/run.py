@@ -78,7 +78,7 @@ def main(args):
     # ###               OLD CODE END                     ###
 
     logging.info('Indexing triplets from %s' % args.data_path)
-    kg = TripletsEngine(os.path.join(args.data_path), ext="csv", from_splits=True)
+    kg = TripletsEngine(os.path.join(args.data_path), ext="txt" if "FB" in args.data_path.split("/")[-1] else "csv", from_splits=True)
     logging.info('End indexing')
 
     args.nentity = kg.number_of_entities

@@ -1,4 +1,19 @@
-# TransE
+# TransE FB15k-237
+CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
+ --cuda \
+ --do_valid \
+ --do_test \
+ --cpu_num 48 \
+ --data_path data/FB15k-237 \
+ --model TransE \
+ -n 1 -b 500000 -d 512 \
+ -g 9.0 -a 1.0 -adv \
+ -lr 0.0001 --max_steps 100000 \
+ --test_batch_size 1 \
+ -save models/TransE_FB15k-237_0 \
+#  --init_checkpoint models/TransE_umls_0
+
+# # TransE FB15k
 # CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
 #  --cuda \
 #  --do_valid \
@@ -13,18 +28,18 @@
 #  -save models/TransE_umls_0 \
 #  --init_checkpoint models/TransE_umls_0
 
-# RotatE
- CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
- --cuda \
- --do_valid \
- --do_test \
- --cpu_num 48 \
- --data_path data/umls \
- --model RotatE \
- -n 1 -b 150000 -d 200 \
- -g 24.0 -a 1.0 -adv \
- -lr 0.0005 --max_steps 100000 \
- -save models/RotatE_umls_0 --test_batch_size 16  -de
+# # RotatE
+#  CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
+#  --cuda \
+#  --do_valid \
+#  --do_test \
+#  --cpu_num 48 \
+#  --data_path data/umls \
+#  --model RotatE \
+#  -n 1 -b 150000 -d 200 \
+#  -g 24.0 -a 1.0 -adv \
+#  -lr 0.0005 --max_steps 100000 \
+#  -save models/RotatE_umls_0 --test_batch_size 16  -de
 
 # # TransR
 #   CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
