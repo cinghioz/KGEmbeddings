@@ -160,7 +160,7 @@ class GeometricSolver:
 
         return final_ids
 
-    def execute_search_step(self, query: tuple, true: int, to_remove: set, mode: str = "tail-batch") -> list:
+    def execute_search_step(self, query: tuple, to_remove: set, mode: str = "tail-batch") -> list:
         h, r = query
         ids, dist = self._predict(int(h), int(r), int(h), mode=mode, last=True)
 
@@ -171,7 +171,5 @@ class GeometricSolver:
 
         filtered_ids = [i for i in ids.cpu().tolist() if i not in to_remove]
         # filtered_ids = ids.cpu().tolist()
-
-        self._evaluate_query(torch.tensor(filtered_ids), [true])
 
         return filtered_ids
