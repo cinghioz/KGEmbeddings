@@ -24,19 +24,25 @@ r_map = pd.read_json("/home/cc/phd/KGEmbeddings/data/umls/rel_map.json", typ='se
 inv_e_map = {v: k for k, v in e_map.items()}
 inv_r_map = {v: k for k, v in r_map.items()}
 
-def api_call(cui):
-    url = f"https://uts-ws.nlm.nih.gov/rest/content/current/CUI/{cui}?apiKey=f72ff16d-f1da-40a6-adbc-9f42ff7c9fe7"
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        return data.get('result', {}).get('name', 'N/A')
-    else:
-        return 'N/A'
+def get_name(dic, cui):
+    return dic.get(cui, 'N/A')
 
 if __name__ == "__main__":
 
+    print("Loading MRCONSO concepts ...")
+    concepts = pd.read_csv("/home/cc/phd/KGGraphRAG/umls/MRCONSO.RRF", sep="|", header=None,  usecols=[0, 1, 14], names=["CUI", "LNG", "NAME"], low_memory=False)
+    concepts = concepts[concepts['LNG'] == 'ENG']
+    cui_to_name = dict(zip(concepts['CUI'], concepts['NAME']))
+
+    TARGET_RELS = ["may_treat", "contraindicated_with_disease", "manifestation_of", "causative_agent_of", "pathological_process_of",
+                "has_finding_site", "associated_morphology_of", "clinically_associated_with", "therapeutic_class_of", "has_phenotype",
+                "associated_with", "co-occurs_with", "has_focus", "has_component", "has_active_ingredient", "has_ingredient", "used_for",
+                "physiologic_effect_of", "mechanism_of_action_of", "has_procedure_site", "has_direct_procedure_site", "location_of", "method_of"]
+
+    MAP_RELS = [r_map[r] for r in TARGET_RELS]
+
     umls = pd.read_csv("/home/cc/phd/KGEmbeddings/data/umls/train.csv", low_memory=False)
-    umls_r5 = umls[umls['relation_id'] == 5]
+    umls_r5 = umls[umls['relation_id'].isin(MAP_RELS)]
 
     number_of_proj = 2
     shared_tails = umls_r5.groupby('tail_id')['head_id'].nunique()
@@ -59,10 +65,8 @@ if __name__ == "__main__":
 
             relations = umls_r5[umls_r5['tail_id'] == shared_tail_id]['relation_id'].values
 
-            # Save query structure (5 is the relation_id for "is_associated_with")
             query = [[(heads[i], relations[i]) for i in range(number_of_proj)]]
 
-            # new head = shared_tail_id
             new_head_id = shared_tail_id
             new_edges = umls[(umls['head_id'] == new_head_id) & (umls['relation_id'] != 0)]
 
@@ -77,38 +81,34 @@ if __name__ == "__main__":
             )
             
             for rel, tails in relation_dict.items():
-                queries.append(query+[rel])
-                shared_tails_inter.append(shared_tail_id)
-                results.append(tails)
+                if rel in MAP_RELS:
+                    queries.append(query+[rel])
+                    shared_tails_inter.append(shared_tail_id)
+                    results.append(tails)
 
     string_queries = []
 
-    template = """{sh_tail} is associated with {h1} and {h2}. What other entities are related to {sh_tail} through the relation "{target_rel}"? """
-
     for query, sh_tail, res in tqdm(zip(queries, shared_tails_inter, results), total=len(queries), desc="Formatting and save string queries"):
+        if get_name(cui_to_name, inv_e_map[sh_tail]) == 'N/A' or get_name(cui_to_name, inv_e_map[query[0][0][0]]) == 'N/A' or get_name(cui_to_name, inv_e_map[query[0][1][0]]) == 'N/A':
+            continue
 
-        sh_tail = api_call(inv_e_map[sh_tail])
-        h1 = api_call(inv_e_map[query[0][0][0]])
-        h2 = api_call(inv_e_map[query[0][1][0]])
+        sh_tail = get_name(cui_to_name, inv_e_map[sh_tail])
+        h1 = get_name(cui_to_name, inv_e_map[query[0][0][0]])
+        h2 = get_name(cui_to_name, inv_e_map[query[0][1][0]])
+        r1 = inv_r_map[query[0][0][1]]
+        r2 = inv_r_map[query[0][1][1]]
         target_rel = "is associated to" if query[1] == 5 else inv_r_map[query[1]]
 
-        query_to_string = template.format(
-            sh_tail=sh_tail,
-            h1=h1,
-            h2=h2,
-            target_rel=target_rel
-        )
+        string_queries.append([[(h1, r1), (h2, r2)], sh_tail, target_rel, [get_name(cui_to_name, inv_e_map[r]) for r in res]])
 
-        string_queries.append([query_to_string, [h1, h2], sh_tail, target_rel, [api_call(inv_e_map[r]) for r in res]])
-
-    queries_df = pd.DataFrame(string_queries, columns=["query", "known_heads", "shared_tail", "target_relation", "answers"])
-    queries_df.to_csv("umls_generated_queries.csv", index=False)
+    queries_df = pd.DataFrame(string_queries, columns=["known_heads", "shared_tail", "target_relation", "answers"])
+    queries_df.to_csv("umls_generated_queries2.csv", index=False)
 
     save_dict = {
         'queries': queries,
         'results': results
     }
 
-    with open(f'/home/cc/phd/KGEmbeddings/queries/{DATA}/queries-isa.pkl', 'wb') as f:
+    with open(f'/home/cc/phd/KGEmbeddings/queries/{DATA}/queries.pkl', 'wb') as f:
         pickle.dump(save_dict, f)
 
