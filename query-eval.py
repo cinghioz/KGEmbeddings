@@ -51,12 +51,7 @@ def map_at_k(pred, true, k):
 
 def custom_hits_at_k(pred, trues, k):
     if len(trues) == 0:
-        print("No true answers available.")
         return 1.0
-
-    if len(pred) == 0:
-        print("No predictions made.")
-        return 0.0
     
     hits = []
 
