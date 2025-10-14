@@ -1,4 +1,3 @@
-# %%
 import pickle
 import os
 import torch
@@ -9,22 +8,29 @@ from tqdm import tqdm
 from codes.query_solver import GeometricSolver
 from codes.triplets import TripletsEngine
 
-PATH = "/home/marco_dossena/PHD/KGEmbeddings/"
-EMBEDDING_DIM = 512
+# PATH = "/home/marco_dossena/PHD/KGEmbeddings/"
+PATH = "/home/cc/phd/KGEmbeddings/"
+EMBEDDING_DIM = 200
 DATA = "umls"
+MODEL_NAME = "RotatE"
 # MODEL_PATH = "/home/cc/phd/KGEmbeddings/models/TransE_FB15k_0/"
 # MODEL_PATH = "/home/cc/phd/KGEmbeddings/models/RotatE_FB15k_0/"
-MODEL_PATH = f"{PATH}models/TransE_{DATA}_0"
-MODEL_NAME = "transe"
+MODEL_PATH = f"{PATH}models/{MODEL_NAME}_{DATA}_0"
 # DICTS_DIR = "/home/cc/phd/KGEmbeddings/data/FB15k/"
 DICTS_DIR = f"{PATH}data/{DATA}"
+
+def print_metrics(metrics, name, interval):
+    print(f"{name} over {interval} queries:")
+    for k in interval:
+        print(f"{name}@{k}:{np.mean(metrics[f'{name.lower()}@{k}']):.4f}")
+    print("-----------------------")
 
 def recall_at_k(pred, true, k):
     if len(true) == 0:
         return 1.0
     
     if k > 0:
-        pred_k = pred[:max(k, len(true)+10)]
+        pred_k = pred[:max(k, len(true))]
     else:
         pred_k = pred
 
@@ -36,79 +42,121 @@ def map_at_k(pred, true, k):
         return 1.0
     
     if k > 0:
-        pred_k = pred[:k]
+        pred_k = pred[:max(k, len(true))]
     else:
         pred_k = pred
 
     hits = sum([1 for p in pred_k if p in true])
-    return hits / k
+    return hits / max(k, len(true))
+
+def custom_hits_at_k(pred, trues, k):
+    if len(trues) == 0:
+        print("No true answers available.")
+        return 1.0
+
+    if len(pred) == 0:
+        print("No predictions made.")
+        return 0.0
+    
+    hits = []
+
+    if len(trues) == 1:
+        hits.append(1.0 if trues[0] in pred[:k] else 0.0)
+    else:
+        for true in trues:
+            pred_set = np.setdiff1d(pred, trues[trues != true])
+            hits.append(1.0 if true in pred_set[:k] else 0.0)
+
+    return np.mean(hits)
+
+def custom_mrr(pred, trues):
+    if len(trues) == 0:
+        return 1.0
+    
+    rr = []
+    if len(trues) == 1:
+        if trues[0] in pred:
+            rank = np.where(pred == trues[0])[0][0] + 1
+            rr.append(1.0 / rank)
+        else:
+            rr.append(0.0)
+    else:
+        for true in trues:
+            pred_set = np.setdiff1d(pred, trues[trues != true])
+            if true in pred_set:
+                rank = np.where(pred_set == true)[0][0] + 1
+                rr.append(1.0 / rank)
+            else:
+                rr.append(0.0)
+
+    return np.mean(rr)
 
 if __name__ == "__main__":
 
-    with open(f'queries/{DATA}/queries-big2.pkl', 'rb') as f:
+    with open(f'queries/{DATA}/queries.pkl', 'rb') as f:
         loaded_dict = pickle.load(f)
 
     queries = loaded_dict['queries']
     results = loaded_dict['results']
 
-    kg = TripletsEngine(os.path.join(DICTS_DIR), ext="txt" if DATA == "FB15k" else "csv", from_splits=True)
-    qs = GeometricSolver(MODEL_PATH, MODEL_NAME, EMBEDDING_DIM, h2t=kg.h2t, k_neighbors=50, k_results=25, device='cuda')
+    kg = TripletsEngine(os.path.join(DICTS_DIR), ext="txt" if DATA.startswith("FB15k") else "csv", from_splits=True)
+    qs = GeometricSolver(MODEL_PATH, MODEL_NAME.lower(), EMBEDDING_DIM, h2t=kg.h2t, t2h=kg.t2h, k_neighbors=50, k_results=25, device='cuda')
 
     qs.set_k(k_neighbors=50, k_results=25)
+
     recalls = {
-        "recall": [],
-        "recall1": [],
-        "recall5": [],
-        "recall10": [],
-        "recall25": [],
-        "recall50": [],
+        "recall@1": [],
+        "recall@5": [],
+        "recall@10": [],
+        "recall@25": [],
+        "recall@50": [],
     }
 
     maps = {
-        'MAP@1': [],
-        'MAP@5': [],
-        'MAP@10': [],
-        'MAP@25': [],
-        'MAP@50': [],
+        'map@1': [],
+        'map@5': [],
+        'map@10': [],
+        'map@25': [],
+        'map@50': [],
     }
 
+    hits = {
+        'hits@1': [],
+        'hits@5': [],
+        'hits@10': [],
+        'hits@25': [],
+        'hits@50': [],
+    }
+
+    mrr = []
     cnt = 0
 
     for query, result in tqdm(zip(queries, results), total=len(queries)):
 
-        res = qs.execute_query(query, proj_mode="inter", agg_mode="union", trues=result)
+        res = qs.execute_query(query, proj_mode="inter", agg_mode="union")
+        cnt += 1
+        # result = np.array(list(result[-1]))
 
         if len(res) > 0:
             for k in [1, 5, 10, 25, 50]:
-                recalls[f"recall{k}"].append(recall_at_k(res, result[-1], k))
-                maps[f'MAP@{k}'].append(map_at_k(res, result[-1], k))
+                recalls[f"recall@{k}"].append(recall_at_k(res, result, k))
+                maps[f'map@{k}'].append(map_at_k(res, result, k))
+                hits[f'hits@{k}'].append(custom_hits_at_k(res, result, k))
+            mrr.append(custom_mrr(res, result))
 
-            recalls["recall"].append(recall_at_k(res, result[-1], 0))
-
-        cnt += 1
         if cnt % 1000 == 0:
-            print(f"Queries evaluated: {cnt} -> remaining queries: {len(queries) - cnt}")
+            print(f"Final results for {cnt} complex queries:")
+            print(f"Mrr: {np.mean(mrr):.4f}")
+            print("-----------------------")
+            print_metrics(hits, "Hits", [1, 5, 10, 25, 50])
+            print_metrics(recalls, "Recall", [1, 5, 10, 25, 50])
+            print_metrics(maps, "Map", [1, 5, 10, 25, 50])
 
-            metrics = qs.get_metrics()
-
-            print(f"Average Recall over {len(queries)} complex queries (2p1): {np.mean(recalls['recall'])}")
-            print(f"Average MRR over {len(queries)} complex queries (2pi): {np.mean(metrics['mrr'])}")
-            print(f"Average Recall@K over {len(queries)} complex queries (2p1): 1: {np.mean(recalls['recall1'])}, 5: {np.mean(recalls['recall5'])}, 10: {np.mean(recalls['recall10'])}, \
-            25: {np.mean(recalls['recall25'])}, 50: {np.mean(recalls['recall50'])}")
-            print(f"Average Hits@K over {len(queries)} complex queries (2pi): 1: {np.mean(metrics['hits1'])}, 3: {np.mean(metrics['hits3'])}, \
-            5: {np.mean(metrics['hits5'])}, 10: {np.mean(metrics['hits10'])}, 25: {np.mean(metrics['hits25'])}")
-            print(f"Average MAP@K over {len(queries)} complex queries (2p1): 1: {np.mean(maps['MAP@1'])}, 5: {np.mean(maps['MAP@5'])}, 10: {np.mean(maps['MAP@10'])}, \
-            25: {np.mean(maps['MAP@25'])}, 50: {np.mean(maps['MAP@50'])}")
-
-    metrics = qs.get_metrics()
-
-    print(f"Average Recall over {len(queries)} complex queries (2p1): {np.mean(recalls['recall'])}")
-    print(f"Average MRR over {len(queries)} complex queries (2pi): {np.mean(metrics['mrr'])}")
-    print(f"Average Recall@K over {len(queries)} complex queries (2p1): 1: {np.mean(recalls['recall1'])}, 5: {np.mean(recalls['recall5'])}, 10: {np.mean(recalls['recall10'])}, \
-    25: {np.mean(recalls['recall25'])}, 50: {np.mean(recalls['recall50'])}")
-    print(f"Average Hits@K over {len(queries)} complex queries (2pi): 1: {np.mean(metrics['hits1'])}, 3: {np.mean(metrics['hits3'])}, \
-    5: {np.mean(metrics['hits5'])}, 10: {np.mean(metrics['hits10'])}, 25: {np.mean(metrics['hits25'])}")
-    print(f"Average MAP@K over {len(queries)} complex queries (2p1): 1: {np.mean(maps['MAP@1'])}, 5: {np.mean(maps['MAP@5'])}, 10: {np.mean(maps['MAP@10'])}, \
-    25: {np.mean(maps['MAP@25'])}, 50: {np.mean(maps['MAP@50'])}")
+    print(f"Final results for {len(queries)} complex queries:")
+    print(f"Mrr: {np.mean(mrr):.4f}")
+    print("-----------------------")
+    print_metrics(hits, "Hits", [1, 5, 10, 25, 50])
+    print_metrics(recalls, "Recall", [1, 5, 10, 25, 50])
+    print_metrics(maps, "Map", [1, 5, 10, 25, 50])
 
 
