@@ -10,7 +10,7 @@ from tqdm import tqdm
 import pickle 
 from codes.triplets import TripletsEngine
 
-DICTS_DIR = '/home/cc/phd/KGEmbeddings/data/primekg'
+DICTS_DIR = '/home/cc/phd/KGEmbeddings/data/FB15k-237'
 
 random.seed(42)
 
@@ -100,7 +100,7 @@ def find_queries(h2t, indexing_dict, n_pairs=3, n_queries=10000):
     return queries, results
 
 if __name__ == '__main__':
-    kg = TripletsEngine(os.path.join(DICTS_DIR), ext="csv", from_splits=True)
+    kg = TripletsEngine(os.path.join(DICTS_DIR), ext="txt", from_splits=True)
 
     # (head, relation) -> list of tails
     h2t = defaultdict(list)
@@ -134,14 +134,14 @@ if __name__ == '__main__':
 
     print("Indexing done.")
 
-    queries, results = find_queries(h2t, indexing_dict, n_pairs=3, n_queries=100000)
+    queries, results = find_queries(h2t, indexing_dict, n_pairs=5, n_queries=100000)
 
     save_dict = {
         'queries': queries,
         'results': results
     }
 
-    with open('/home/cc/phd/KGEmbeddings/queries/primekg/queries-big.pkl', 'wb') as f:
+    with open('/home/cc/phd/KGEmbeddings/queries/FB15k-237/queries-big.pkl', 'wb') as f:
         pickle.dump(save_dict, f)
 
     print("Queries generated and saved correctly!")

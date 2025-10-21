@@ -1,1 +1,52 @@
-UMLS
+UMLS ROTATE QUERY
+
+Final results for 4255 complex queries:
+Mrr: 0.3057
+-----------------------
+Hits over [1, 5, 10, 25, 50] queries:
+Hits@1:0.2010
+Hits@5:0.4164
+Hits@10:0.5105
+Hits@25:0.6317
+Hits@50:0.7273
+-----------------------
+Recall over [1, 5, 10, 25, 50] queries:
+Recall@1:0.3438
+Recall@5:0.5885
+Recall@10:0.7131
+Recall@25:0.8581
+Recall@50:0.9438
+-----------------------
+Map over [1, 5, 10, 25, 50] queries:
+Map@1:0.3438
+Map@5:0.1948
+Map@10:0.1301
+Map@25:0.0677
+Map@50:0.0377
+-----------------------
+
+UMLS TRANSE QUERY
+
+Final results for 4255 complex queries:
+Mrr: 0.1921
+-----------------------
+Hits over [1, 5, 10, 25, 50] queries:
+Hits@1:0.0998
+Hits@5:0.2703
+Hits@10:0.3807
+Hits@25:0.5809
+Hits@50:0.7092
+-----------------------
+Recall over [1, 5, 10, 25, 50] queries:
+Recall@1:0.1356
+Recall@5:0.3232
+Recall@10:0.4589
+Recall@25:0.7057
+Recall@50:0.8611
+-----------------------
+Map over [1, 5, 10, 25, 50] queries:
+Map@1:0.1356
+Map@5:0.0869
+Map@10:0.0658
+Map@25:0.0435
+Map@50:0.0284

@@ -10,9 +10,9 @@ from codes.triplets import TripletsEngine
 
 # PATH = "/home/marco_dossena/PHD/KGEmbeddings/"
 PATH = "/home/cc/phd/KGEmbeddings/"
-EMBEDDING_DIM = 200
+EMBEDDING_DIM = 512
 DATA = "umls"
-MODEL_NAME = "RotatE"
+MODEL_NAME = "TransE"
 # MODEL_PATH = "/home/cc/phd/KGEmbeddings/models/TransE_FB15k_0/"
 # MODEL_PATH = "/home/cc/phd/KGEmbeddings/models/RotatE_FB15k_0/"
 MODEL_PATH = f"{PATH}models/{MODEL_NAME}_{DATA}_0"
