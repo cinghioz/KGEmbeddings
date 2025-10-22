@@ -10,7 +10,7 @@ from tqdm import tqdm
 import pickle 
 from codes.triplets import TripletsEngine
 
-DICTS_DIR = '/home/cc/phd/KGEmbeddings/data/FB15k-237'
+DICTS_DIR = '/home/cc/phd/KGEmbeddings/data/FB15k'
 
 random.seed(42)
 
@@ -20,7 +20,7 @@ def find_queries(h2t, indexing_dict, n_pairs=3, n_queries=10000):
     results = []
     cnt = 0
     for node in indexing_dict.keys():
-        if indexing_dict[node]['count'] < 4 or indexing_dict[node]['count'] > 500:
+        if indexing_dict[node]['count'] < (n_pairs//2) or indexing_dict[node]['count'] > ((n_pairs//2) * 100):
             continue
 
         if len(queries) >= n_queries:
@@ -134,14 +134,14 @@ if __name__ == '__main__':
 
     print("Indexing done.")
 
-    queries, results = find_queries(h2t, indexing_dict, n_pairs=5, n_queries=100000)
+    queries, results = find_queries(h2t, indexing_dict, n_pairs=10, n_queries=100000)
 
     save_dict = {
         'queries': queries,
         'results': results
     }
 
-    with open('/home/cc/phd/KGEmbeddings/queries/FB15k-237/queries-big.pkl', 'wb') as f:
+    with open('/home/cc/phd/KGEmbeddings/queries/FB15k/queries-big.pkl', 'wb') as f:
         pickle.dump(save_dict, f)
 
     print("Queries generated and saved correctly!")

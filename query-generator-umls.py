@@ -68,7 +68,7 @@ if __name__ == "__main__":
             query = [[(heads[i], relations[i]) for i in range(number_of_proj)]]
 
             new_head_id = shared_tail_id
-            new_edges = umls[(umls['head_id'] == new_head_id) & (umls['relation_id'] != 0)]
+            new_edges = umls_r5[(umls_r5['head_id'] == new_head_id) & (umls_r5['relation_id'] != 0)]
 
             if new_edges.empty:
                 continue

@@ -10,9 +10,9 @@ from codes.triplets import TripletsEngine
 
 # PATH = "/home/marco_dossena/PHD/KGEmbeddings/"
 PATH = "/home/cc/phd/KGEmbeddings/"
-EMBEDDING_DIM = 512
-DATA = "umls"
-MODEL_NAME = "TransE"
+EMBEDDING_DIM = 256
+DATA = "FB15k"
+MODEL_NAME = "RotatE"
 # MODEL_PATH = "/home/cc/phd/KGEmbeddings/models/TransE_FB15k_0/"
 # MODEL_PATH = "/home/cc/phd/KGEmbeddings/models/RotatE_FB15k_0/"
 MODEL_PATH = f"{PATH}models/{MODEL_NAME}_{DATA}_0"
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     kg = TripletsEngine(os.path.join(DICTS_DIR), ext="txt" if DATA.startswith("FB15k") else "csv", from_splits=True)
     qs = GeometricSolver(MODEL_PATH, MODEL_NAME.lower(), EMBEDDING_DIM, h2t=kg.h2t, t2h=kg.t2h, k_neighbors=50, k_results=25, device='cuda')
 
-    qs.set_k(k_neighbors=50, k_results=25)
+    qs.set_k(k_neighbors=50, k_results=50)
 
     recalls = {
         "recall@1": [],
@@ -127,7 +127,8 @@ if __name__ == "__main__":
     cnt = 0
 
     for query, result in tqdm(zip(queries, results), total=len(queries)):
-
+        # result = list(result[-1]) if len(result) > 1 else result
+        
         res = qs.execute_query(query, proj_mode="inter", agg_mode="union")
         cnt += 1
         # result = np.array(list(result[-1]))
@@ -139,7 +140,7 @@ if __name__ == "__main__":
                 hits[f'hits@{k}'].append(custom_hits_at_k(res, result, k))
             mrr.append(custom_mrr(res, result))
 
-        if cnt % 1000 == 0:
+        if cnt % 5000 == 0:
             print(f"Final results for {cnt} complex queries:")
             print(f"Mrr: {np.mean(mrr):.4f}")
             print("-----------------------")
