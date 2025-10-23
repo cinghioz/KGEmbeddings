@@ -20,6 +20,7 @@ DICTS_DIR = f'/home/cc/phd/KGEmbeddings/data/{DATA}'
 
 # chat con interessante discorso su questo: https://chatgpt.com/c/68c0325c-18c8-832b-b7fe-3eb459d9c9b8
 # TODO: Implementare predict cont RotatE
+# TODO: Check eval script
 
 def predict(head_id, relation_id, tail_id, entity_embeddings, relation_embeddings, mode = "tail-batch", top_k=10):
     head = entity_embeddings[head_id]
