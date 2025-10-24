@@ -1,3 +1,17 @@
+# TransE primekg
+CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
+ --cuda \
+ --do_valid \
+ --do_test \
+ --cpu_num 48 \
+ --data_path data/primekg \
+ --model TransE \
+ -n 1 -b 500000 -d 512 \
+ -g 24.0 -a 1.0 -adv \
+ -lr 0.0005 --max_steps 100000 \
+ --test_batch_size 1 \
+ -save models/TransE_primekg_0
+
 # # RotatE umls 100 negative (128 dim)
 #  CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
 #  --cuda \
@@ -26,19 +40,19 @@
 #  -save models/TransE_FB15k-237_0 \
 # #  --init_checkpoint models/TransE_umls_0
 
-# TransE umls
-CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
- --cuda \
- --do_valid \
- --do_test \
- --cpu_num 48 \
- --data_path data/umls \
- --model TransE \
- -n 1 -b 250000 -d 512 \
- -g 24.0 -a 1.0 -adv \
- -lr 0.0005 --max_steps 100000 \
- --test_batch_size 1 \
- -save models/TransE_umls_filt_0
+# # TransE umls
+# CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \
+#  --cuda \
+#  --do_valid \
+#  --do_test \
+#  --cpu_num 48 \
+#  --data_path data/umls \
+#  --model TransE \
+#  -n 1 -b 250000 -d 512 \
+#  -g 24.0 -a 1.0 -adv \
+#  -lr 0.0005 --max_steps 100000 \
+#  --test_batch_size 1 \
+#  -save models/TransE_umls_filt_0
 
 # # RotatE
 #  CUDA_VISIBLE_DEVICES=0 python3 -u codes/run.py --do_train \

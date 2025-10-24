@@ -40,42 +40,6 @@ def main(args):
     
     # Write logs to checkpoint and console
     set_logger(args)
-    
-    # ###               OLD CODE                     ###
-    #
-    # with open(os.path.join(args.data_path, 'entities.dict')) as fin:
-    #     entity2id = dict()
-    #     for line in fin:
-    #         eid, entity = line.strip().split('\t')
-    #         entity2id[entity] = int(eid)
-
-    # with open(os.path.join(args.data_path, 'relations.dict')) as fin:
-    #     relation2id = dict()
-    #     for line in fin:
-    #         rid, relation = line.strip().split('\t')
-    #         relation2id[relation] = int(rid)
-
-    # nentity = len(entity2id)
-    # nrelation = len(relation2id)
-    
-    # args.nentity = nentity
-    # args.nrelation = nrelation
-    
-    # logging.info('Model: %s' % args.model)
-    # logging.info('Data Path: %s' % args.data_path)
-    # logging.info('#entity: %d' % nentity)
-    # logging.info('#relation: %d' % nrelation)
-    
-    # train_triples = read_triple(os.path.join(args.data_path, 'train.txt'), entity2id, relation2id)
-    # logging.info('#train: %d' % len(train_triples))
-    # valid_triples = read_triple(os.path.join(args.data_path, 'valid.txt'), entity2id, relation2id)
-    # logging.info('#valid: %d' % len(valid_triples))
-    # test_triples = read_triple(os.path.join(args.data_path, 'test.txt'), entity2id, relation2id)
-    # logging.info('#test: %d' % len(test_triples))
-    
-    # #All true triples
-    # all_true_triples = train_triples + valid_triples + test_triples
-    # ###               OLD CODE END                     ###
 
     logging.info('Indexing triplets from %s' % args.data_path)
     kg = TripletsEngine(os.path.join(args.data_path), ext="txt" if "FB" in args.data_path.split("/")[-1] else "csv", from_splits=True)
