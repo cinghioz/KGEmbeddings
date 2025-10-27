@@ -10,7 +10,8 @@ from tqdm import tqdm
 import pickle 
 from codes.triplets import TripletsEngine
 
-DICTS_DIR = '/home/cc/phd/KGEmbeddings/data/FB15k'
+DATA = "FB15k-237"
+DICTS_DIR = f'/home/cc/phd/KGEmbeddings/data/{DATA}'
 
 random.seed(42)
 
@@ -141,7 +142,7 @@ if __name__ == '__main__':
         'results': results
     }
 
-    with open('/home/cc/phd/KGEmbeddings/queries/FB15k/queries-big.pkl', 'wb') as f:
+    with open(f'/home/cc/phd/KGEmbeddings/queries/{DATA}/queries-big.pkl', 'wb') as f:
         pickle.dump(save_dict, f)
 
     print("Queries generated and saved correctly!")
