@@ -3,12 +3,6 @@ checkpoint
 *.log
 codes/__pycache__/
 .venv/
-queries-medium.pkl
-queries-big.pkl
-data/primekg
-queries/primekg
-data/umls
-data/umls-old
-queries/umls
-queries/umls-old
+data
+queries
 firebase/rok-stats-sa.json
